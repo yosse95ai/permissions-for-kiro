@@ -10,6 +10,7 @@ import {
   resolveWorkspaceScope,
   type ScopeFile,
 } from './permissionsFile';
+import { type PolicyScope, type ScopeValidation, validatePermissions } from './validate';
 
 /** スコープの中身の状態。ツリーの表示分岐はこれで決まる。 */
 export type ScopeContent =
@@ -28,6 +29,13 @@ interface ScopeBase {
   label: string;
   file: ScopeFile;
   content: ScopeContent;
+  /**
+   * Kiro の規則に照らした検証結果（Q33 = C）。
+   *
+   * `content` が `parsed` 以外のときは空。`fatal` が空でなければ、**このスコープのルールは
+   * 1 つも効いていない。**
+   */
+  validation: ScopeValidation;
 }
 
 export type ScopeData =
@@ -38,6 +46,18 @@ export type ScopeData =
       resolvedVia: ResolvedVia;
       folder: vscode.WorkspaceFolder;
     });
+
+/**
+ * 検証結果を作る。
+ *
+ * 毎回新しい `Map` を返す。共有すると呼び出し側の変更が他のスコープに漏れる。
+ */
+function validateContent(content: ScopeContent, scope: PolicyScope): ScopeValidation {
+  if (content.state !== 'parsed') {
+    return { fatal: [], skipped: new Map() };
+  }
+  return validatePermissions(content.result, scope);
+}
 
 async function readContent(file: ScopeFile): Promise<ScopeContent> {
   if (!file.exists) {
@@ -64,6 +84,7 @@ export async function loadScopes(home: string = os.homedir()): Promise<ScopeData
   const workspaceScopes = await Promise.all(
     folders.map(async (folder): Promise<ScopeData> => {
       const file = await resolveWorkspaceScope(folder.uri.fsPath, home);
+      const content = await readContent(file);
       return {
         kind: 'workspace',
         key: `workspace:${folder.uri.fsPath}`,
@@ -72,18 +93,21 @@ export async function loadScopes(home: string = os.homedir()): Promise<ScopeData
         hash: file.hash,
         resolvedVia: file.resolvedVia,
         folder,
-        content: await readContent(file),
+        content,
+        validation: validateContent(content, 'workspace'),
       };
     }),
   );
 
   const userFile = await resolveUserScope(home);
+  const userContent = await readContent(userFile);
   const userScope: ScopeData = {
     kind: 'user',
     key: 'user',
-    label: 'User',
+    label: vscode.l10n.t('User'),
     file: userFile,
-    content: await readContent(userFile),
+    content: userContent,
+    validation: validateContent(userContent, 'user'),
   };
 
   return [...workspaceScopes, userScope];

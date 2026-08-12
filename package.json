@@ -1,7 +1,7 @@
 {
   "name": "permissions-for-kiro",
   "displayName": "Permissions for Kiro",
-  "description": "Visualize the permission rules that apply to your current workspace and user profile, and jump straight to the line that defines them.",
+  "description": "%extension.description%",
   "version": "0.1.0",
   "publisher": "yosse95ai",
   "license": "MIT",
@@ -28,6 +28,7 @@
     "tree view"
   ],
   "main": "./dist/extension.js",
+  "l10n": "./l10n",
   "activationEvents": [],
   "contributes": {
     "views": {
@@ -42,19 +43,19 @@
       {
         "command": "permissionsForKiro.refresh",
         "category": "Permissions for Kiro",
-        "title": "Refresh",
+        "title": "%command.refresh.title%",
         "icon": "$(refresh)"
       },
       {
         "command": "permissionsForKiro.openScopeFile",
         "category": "Permissions for Kiro",
-        "title": "Open Permissions File",
+        "title": "%command.openScopeFile.title%",
         "icon": "$(pencil)"
       },
       {
         "command": "permissionsForKiro.revealLocation",
         "category": "Permissions for Kiro",
-        "title": "Go to Definition"
+        "title": "%command.revealLocation.title%"
       }
     ],
     "menus": {

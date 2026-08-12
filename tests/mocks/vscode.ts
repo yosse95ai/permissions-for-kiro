@@ -199,3 +199,23 @@ export const window = {
 export const commands = {
   registerCommand: (command: string) => ({ dispose: () => undefined, command }),
 };
+
+/**
+ * `vscode.l10n` のモック。
+ *
+ * **原文をそのまま返す**（`{0}` の埋め込みだけ行う）。実際の拡張ホストでも、対象ロケールの
+ * バンドルが無ければ第一引数が返る。この挙動に合わせているので、テストの期待値は英語のまま
+ * 書ける。日本語訳そのものの検証は `l10n/bundle.l10n.ja.json` のキーの網羅性で担保する。
+ *
+ * 名前付きプレースホルダ（`{name}`）は使っていないため実装しない。
+ */
+export const l10n = {
+  bundle: undefined as Record<string, string> | undefined,
+  uri: undefined as Uri | undefined,
+  t(message: string, ...args: Array<string | number | boolean>): string {
+    return message.replace(/\{(\d+)\}/g, (placeholder, index: string) => {
+      const value = args[Number(index)];
+      return value === undefined ? placeholder : String(value);
+    });
+  },
+};

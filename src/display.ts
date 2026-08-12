@@ -1,5 +1,8 @@
+import * as vscode from 'vscode';
+
 import type { ScopeContent } from './model';
 import type { PermissionRule } from './parse';
+import type { ScopeValidation } from './validate';
 
 /** ラベルと description の区切り。 */
 const SEPARATOR = ' · ';
@@ -7,9 +10,20 @@ const SEPARATOR = ' · ';
 export interface Appearance {
   /** codicon の ID。存在確認は `@vscode/codicons` の `codicon.css` で行う（memory.md 4.2 の codicon の項） */
   icon: string;
-  /** テーマカラーの ID */
-  color: string;
+  /** テーマカラーの ID。**省略すると既定色**（無彩色）になる */
+  color?: string;
 }
+
+/**
+ * ルールが実際に効いているか（Q33 = C）。
+ *
+ * | 値 | 意味 |
+ * | - | - |
+ * | `active` | 効いている |
+ * | `skipped` | このルールだけ Kiro に捨てられている（未知の capability） |
+ * | `inactive` | スコープ全体が読み込まれていないため効いていない |
+ */
+export type RuleState = 'active' | 'skipped' | 'inactive';
 
 /**
  * effect ごとのアイコンと色。
@@ -29,19 +43,81 @@ export const UNKNOWN_EFFECT_APPEARANCE: Appearance = {
   color: 'descriptionForeground',
 };
 
+/**
+ * `match` のパターン行の見た目。
+ *
+ * 色は **`charts.green`**。`allow` の緑（`testing.iconPassed`）とは別の ID を使う。
+ * `deny` ルールの `match` 行も緑になるため、effect の緑と同じ色にすると「許可」の意味に
+ * 読めてしまう。ここでの緑は「対象に含まれる範囲」を表す。
+ */
+export const MATCH_APPEARANCE: Appearance = { icon: 'gear', color: 'charts.green' };
+
+/**
+ * `exclude` のパターン行の見た目。
+ *
+ * **灰色にする。** 赤は `deny` と `not loaded` で既に使っていて意味を増やしたくない。
+ * `match` 行が既定色なので、**色の濃淡と形の両方**で区別できる（Q35）。
+ */
+export const EXCLUDE_APPEARANCE: Appearance = {
+  icon: 'exclude',
+  color: 'descriptionForeground',
+};
+
+/** Kiro に捨てられているルールの見た目。**effect アイコンを置き換える。** */
+export const SKIPPED_APPEARANCE: Appearance = {
+  icon: 'warning',
+  color: 'editorWarning.foreground',
+};
+
+/**
+ * スコープ全体が読み込まれていないときのルールの見た目。
+ *
+ * **色を付けない。** 緑の `pass-filled` が並んだままだと「許可されている」と誤読されるため、
+ * 無彩色の輪郭だけにして効いていないことを示す（Q33 の案 b）。
+ */
+export const INACTIVE_APPEARANCE: Appearance = { icon: 'circle-outline' };
+
 export function effectAppearance(effect: string): Appearance {
   return EFFECT_APPEARANCE[effect] ?? UNKNOWN_EFFECT_APPEARANCE;
 }
 
-/** match の内容を 1 行で表す。`all` / パターンそのもの / `n patterns` のいずれか。 */
+/** ルール行のアイコン。効いていないルールは effect ではなく状態を表す。 */
+export function ruleAppearance(rule: PermissionRule, state: RuleState): Appearance {
+  if (state === 'skipped') {
+    return SKIPPED_APPEARANCE;
+  }
+  if (state === 'inactive') {
+    return INACTIVE_APPEARANCE;
+  }
+  return effectAppearance(rule.effect);
+}
+
+/**
+ * match の内容を 1 行で表す。`all` か件数。
+ *
+ * **1 件でもパターン文字列を出さず件数にする。** パターンは必ず子ノードに出るので（`hasPatternChildren`
+ * が 1 件でも true を返す）、description に出すと同じ文字列が 2 行に重複する。
+ */
 export function matchSummary(rule: PermissionRule): string {
-  if (rule.matchOmitted) {
-    return 'all';
+  if (rule.matchShape === 'omitted') {
+    return vscode.l10n.t('all');
   }
-  if (rule.matches.length === 1) {
-    return rule.matches[0]!.pattern;
+  const count = rule.matches.length;
+  return count === 1 ? vscode.l10n.t('1 pattern') : vscode.l10n.t('{0} patterns', count);
+}
+
+/**
+ * `exclude` の件数表示。無ければ `undefined`。
+ *
+ * **件数だけを出す。** 中身は子ノードで見せる（`hasPatternChildren` が `exclude` を持つ
+ * ルールで必ず true を返すので、必ず展開できる）。
+ */
+export function exclusionSummary(rule: PermissionRule): string | undefined {
+  const count = rule.exclude.patterns.length;
+  if (count === 0) {
+    return undefined;
   }
-  return `${rule.matches.length} patterns`;
+  return count === 1 ? vscode.l10n.t('1 exclusion') : vscode.l10n.t('{0} exclusions', count);
 }
 
 /**
@@ -50,12 +126,24 @@ export function matchSummary(rule: PermissionRule): string {
  * `deny` / `ask` のときだけ effect を文字で併記する（`allow` は無標）。実データでは大半が
  * `allow` なので、全行に書くと本当に注意すべき `deny` が埋もれる（Q15）。
  */
-export function ruleDescription(rule: PermissionRule): string {
+export function ruleDescription(rule: PermissionRule, state: RuleState = 'active'): string {
   const parts: string[] = [];
+  // 効いていないことを先頭に出す。アイコンだけだと見落とすため（Q33 の案 a）。
+  if (state === 'skipped') {
+    parts.push(vscode.l10n.t('skipped'));
+  }
   if (rule.effect === 'deny' || rule.effect === 'ask') {
     parts.push(rule.effect);
   }
   parts.push(matchSummary(rule));
+
+  // `all · 1 exclusion` のように、除外の存在を折りたたんだ状態でも示す。
+  // 特に `match` 省略（= 全対象）と併用されたとき、`all` だけでは誤読を招く。
+  const exclusions = exclusionSummary(rule);
+  if (exclusions !== undefined) {
+    parts.push(exclusions);
+  }
+
   return parts.join(SEPARATOR);
 }
 
@@ -65,36 +153,95 @@ export function ruleDescription(rule: PermissionRule): string {
  * effect をアイコンだけで表すとスクリーンリーダーには伝わらないため、`allow` も含めて
  * 完全な情報を入れる（Q15）。
  */
-export function ruleAccessibilityLabel(rule: PermissionRule): string {
-  return `${rule.capability}, ${rule.effect}, ${matchSummary(rule)}`;
+export function ruleAccessibilityLabel(rule: PermissionRule, state: RuleState = 'active'): string {
+  const parts = [rule.capability, rule.effect, matchSummary(rule)];
+
+  const exclusions = exclusionSummary(rule);
+  if (exclusions !== undefined) {
+    parts.push(exclusions);
+  }
+
+  // 効いていないルールは、アイコンの置き換えだけでは読み上げに乗らないので文字で足す。
+  if (state === 'skipped') {
+    parts.push(vscode.l10n.t('skipped'));
+  } else if (state === 'inactive') {
+    parts.push(vscode.l10n.t('not loaded'));
+  }
+  return parts.join(', ');
 }
 
-/** ルールが子ノード（パターン行）を持つか。1 件以下は description に出すので子を作らない。 */
+/**
+ * ルールが子ノード（パターン行）を持つか。
+ *
+ * **パターンが 1 件でも子を作る**（Q36）。件数によって「description に出す」「子に出す」が
+ * 切り替わると、同じ種類の情報の置き場所が揺れて読みづらい。ツリー形式に統一する。
+ *
+ * 子を持たないのは `match` 省略かつ `exclude` 無し（= 全対象）の場合だけ。
+ */
 export function hasPatternChildren(rule: PermissionRule): boolean {
-  return !rule.matchOmitted && rule.matches.length > 1;
+  return rule.matches.length + rule.exclude.patterns.length > 0;
 }
 
 /**
  * スコープ行の description。
  *
- * 折りたたんだ状態でも異常（未設定・解析エラー）と規模が分かるようにする（Q15）。
+ * 折りたたんだ状態でも異常（未設定・解析エラー・**読み込まれていない**）と規模が分かる
+ * ようにする（Q15 / Q33）。
+ *
+ * 優先順位は「より具体的な情報を優先する」。`parse error` は fatal の一種だが、原因が
+ * はっきりしているので `not loaded` より前に出す。
  */
-export function scopeDescription(content: ScopeContent): string {
+export function scopeDescription(content: ScopeContent, validation: ScopeValidation): string {
   if (content.state === 'missing') {
-    return 'not set';
+    return vscode.l10n.t('not set');
   }
   if (content.state === 'read-error') {
-    return 'read error';
+    return vscode.l10n.t('read error');
   }
   if (content.result.errors.length > 0) {
-    return 'parse error';
+    return vscode.l10n.t('parse error');
+  }
+  if (validation.fatal.length > 0) {
+    return vscode.l10n.t('not loaded');
   }
 
   const count = content.result.rules.length;
-  return count === 1 ? '1 rule' : `${count} rules`;
+  // 単数形と複数形で別のキーにする。日本語のように単複同形の言語では同じ訳になる。
+  const rules = count === 1 ? vscode.l10n.t('1 rule') : vscode.l10n.t('{0} rules', count);
+
+  if (validation.skipped.size === 0) {
+    return rules;
+  }
+  // 折りたたんでいても skip の存在に気付けるようにする（Q33 の案 a）。
+  return `${rules}${SEPARATOR}${vscode.l10n.t('{0} skipped', validation.skipped.size)}`;
 }
 
-/** パースエラー 1 件の表示。行番号は 1-based に直して見せる。 */
+/** スコープ全体が読み込まれていないか。ルールの見た目を落とす判断に使う。 */
+export function isScopeInactive(content: ScopeContent, validation: ScopeValidation): boolean {
+  if (content.state !== 'parsed') {
+    return false;
+  }
+  return content.result.errors.length > 0 || validation.fatal.length > 0;
+}
+
+/** ルール 1 件の状態を決める。 */
+export function ruleStateOf(
+  position: number,
+  validation: ScopeValidation,
+  scopeInactive: boolean,
+): RuleState {
+  if (scopeInactive) {
+    return 'inactive';
+  }
+  return validation.skipped.has(position) ? 'skipped' : 'active';
+}
+
+/**
+ * パースエラー 1 件の表示。行番号は 1-based に直して見せる。
+ *
+ * **翻訳しない。** `message` は `yaml` パッケージが返す英語固定の文字列で訳す手段がなく、
+ * 枠だけ訳すと 1 行の中で言語が混ざる（Q31）。
+ */
 export function formatParseError(error: { line: number; message: string }): string {
   return `Line ${error.line + 1}: ${error.message}`;
 }

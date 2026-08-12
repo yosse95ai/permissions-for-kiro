@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { TreeItemCollapsibleState, Uri } from 'vscode';
+import { ThemeColor, ThemeIcon, TreeItemCollapsibleState, Uri } from 'vscode';
 
 import type { ScopeData } from '../src/model';
 import type { ParseResult, PermissionRule } from '../src/parse';
 import { PermissionsTreeDataProvider, SCOPE_CONTEXT_VALUE, type TreeNode } from '../src/tree';
+import { makeParseResult, makeRule, okValidation, validationOf } from './fixtures';
 
 let provider: PermissionsTreeDataProvider;
 
@@ -12,17 +13,17 @@ beforeEach(() => {
 });
 
 function rule(overrides: Partial<PermissionRule> = {}): PermissionRule {
-  return {
-    capability: 'shell',
-    effect: 'allow',
-    line: 1,
-    matches: [],
-    matchOmitted: true,
-    ...overrides,
-  };
+  return makeRule({ line: 1, ...overrides });
 }
 
-function userScope(result: Partial<ParseResult> = {}): ScopeData {
+/**
+ * User スコープを作る。
+ *
+ * **検証結果は実際の `validatePermissions` を通す。** 手で組むと判定と表示が食い違い、
+ * テストが通っても実機で崩れる。
+ */
+function userScope(overrides: Partial<ParseResult> = {}): ScopeData {
+  const result = makeParseResult(overrides);
   return {
     kind: 'user',
     key: 'user',
@@ -33,7 +34,8 @@ function userScope(result: Partial<ParseResult> = {}): ScopeData {
       exists: true,
       format: 'yaml',
     },
-    content: { state: 'parsed', result: { rules: [], warnings: [], errors: [], ...result } },
+    content: { state: 'parsed', result },
+    validation: validationOf(result),
   };
 }
 
@@ -52,6 +54,7 @@ function missingWorkspaceScope(): ScopeData {
     resolvedVia: 'hash',
     folder: { uri: Uri.file('/Users/test/project'), name: 'project', index: 0 },
     content: { state: 'missing' },
+    validation: okValidation(),
   };
 }
 
@@ -97,7 +100,7 @@ describe('ルール行', () => {
 
   it('match が複数のルールは折りたたみで、クリックしても開かない', () => {
     const target = rule({
-      matchOmitted: false,
+      matchShape: 'list',
       matches: [
         { pattern: 'a', line: 3 },
         { pattern: 'b', line: 4 },
@@ -111,23 +114,21 @@ describe('ルール行', () => {
     expect(item.command).toBeUndefined();
   });
 
-  it('match が 1 件のルールは子を持たず、クリックで該当行にジャンプする', () => {
+  it('match が 1 件のルールも折りたたみになる（ツリー形式に統一。Q36）', () => {
     const target = rule({
       effect: 'deny',
       line: 26,
-      matchOmitted: false,
+      matchShape: 'list',
       matches: [{ pattern: 'sudo*', line: 28 }],
     });
 
     const item = provider.getTreeItem({ kind: 'rule', scope, ruleIndex: 3, rule: target });
 
-    expect(item.collapsibleState).toBe(TreeItemCollapsibleState.None);
-    expect(item.command?.arguments).toEqual([
-      { filePath: '/home/test/.kiro/settings/permissions.yaml', line: 26 },
-    ]);
+    expect(item.collapsibleState).toBe(TreeItemCollapsibleState.Collapsed);
+    expect(item.command).toBeUndefined();
   });
 
-  it('match 省略のルールも子を持たずジャンプできる', () => {
+  it('all のルールは葉になり、クリックで該当行にジャンプする', () => {
     const item = provider.getTreeItem({
       kind: 'rule',
       scope,
@@ -136,9 +137,27 @@ describe('ルール行', () => {
     });
 
     expect(item.collapsibleState).toBe(TreeItemCollapsibleState.None);
+    // パターン行を持たないため、この行にジャンプを割り当てないと飛ぶ手段が無くなる（Q36）。
     expect(item.command?.arguments).toEqual([
       { filePath: '/home/test/.kiro/settings/permissions.yaml', line: 22 },
     ]);
+  });
+
+  it('exclude だけを持つルールは子を持つのでジャンプを割り当てない', () => {
+    const target = rule({
+      capability: 'fs_read',
+      line: 30,
+      exclude: {
+        patterns: [{ pattern: '.env', line: 32 }],
+        shape: 'list',
+        hasNonStringEntry: false,
+      },
+    });
+
+    const item = provider.getTreeItem({ kind: 'rule', scope, ruleIndex: 5, rule: target });
+
+    expect(item.collapsibleState).toBe(TreeItemCollapsibleState.Collapsed);
+    expect(item.command).toBeUndefined();
   });
 
   it('id にスコープと索引を含む', () => {
@@ -152,19 +171,20 @@ describe('ルール行', () => {
       kind: 'rule',
       scope,
       ruleIndex: 0,
-      rule: rule({ effect: 'deny', matchOmitted: false, matches: [{ pattern: 'sudo*', line: 5 }] }),
+      rule: rule({ effect: 'deny', matchShape: 'list', matches: [{ pattern: 'sudo*', line: 5 }] }),
     });
 
     expect(item.label).toBe('shell');
-    expect(item.description).toBe('deny · sudo*');
+    expect(item.description).toBe('deny · 1 pattern');
   });
 });
 
 describe('パターン行', () => {
-  it('アイコンを持たず、クリックでその行にジャンプする', () => {
+  it('クリックでその行にジャンプする', () => {
     const scope = userScope();
     const item = provider.getTreeItem({
       kind: 'pattern',
+      list: 'match',
       scope,
       ruleIndex: 0,
       patternIndex: 5,
@@ -172,7 +192,6 @@ describe('パターン行', () => {
     });
 
     expect(item.label).toBe('npm run build');
-    expect(item.iconPath).toBeUndefined();
     expect(item.collapsibleState).toBe(TreeItemCollapsibleState.None);
     expect(item.command?.arguments).toEqual([
       { filePath: '/home/test/.kiro/settings/permissions.yaml', line: 8 },
@@ -182,13 +201,15 @@ describe('パターン行', () => {
   it('id にスコープ・ルール・パターンの索引を含む', () => {
     const item = provider.getTreeItem({
       kind: 'pattern',
+      list: 'match',
       scope: userScope(),
       ruleIndex: 0,
       patternIndex: 5,
       pattern: { pattern: 'npm run build', line: 8 },
     });
 
-    expect(item.id).toBe('user/0/5');
+    // `match` と `exclude` で名前空間を分ける（Q35）。
+    expect(item.id).toBe('user/0/match/5');
   });
 });
 
@@ -239,27 +260,49 @@ describe('子ノードの構成', () => {
     expect(children.every((child) => child.kind === 'message')).toBe(true);
   });
 
-  it('ルールが 0 件で警告だけある場合は警告を表示する', async () => {
-    const scope = userScope({ warnings: ['`rules` is not a list.'] });
+  it('rules キーが無い場合は原因を行として出す', async () => {
+    const scope = userScope({ rulesKey: 'missing' });
 
     const children = await childrenOf(scope);
 
     expect(children).toHaveLength(1);
-    expect(children[0]).toMatchObject({ kind: 'message', label: '`rules` is not a list.' });
+    expect(children[0]).toMatchObject({
+      kind: 'message',
+      label: 'Policy must contain a "rules" array',
+    });
   });
 
-  it('ルールが読めている場合は警告を行として出さない（tooltip に回す）', async () => {
-    const scope = userScope({ rules: [rule()], warnings: ['Skipped rules[1] ...'] });
+  it('fatal のときは原因を先頭に置き、ルール行も残す', async () => {
+    // `match` が単一文字列。Kiro では fatal になるが、書かれている内容は見せたい。
+    const scope = userScope({
+      rules: [rule({ matchShape: 'scalar', matches: [{ pattern: 'npm test', line: 2 }] })],
+    });
 
     const children = await childrenOf(scope);
 
-    expect(children).toHaveLength(1);
-    expect(children[0]?.kind).toBe('rule');
+    expect(children).toHaveLength(2);
+    expect(children[0]).toMatchObject({
+      kind: 'message',
+      label: '"match" must be a string array in rule 0',
+    });
+    expect(children[1]?.kind).toBe('rule');
+  });
+
+  it('原因の行にはジャンプできる', async () => {
+    const scope = userScope({
+      rules: [rule({ line: 7, matchShape: 'scalar', matches: [{ pattern: 'x', line: 7 }] })],
+    });
+
+    const [problem] = await childrenOf(scope);
+    const item = provider.getTreeItem(problem!);
+
+    expect(item.command?.arguments?.[0]).toMatchObject({ line: 7 });
   });
 
   it('パターン行は葉', async () => {
     const children = await provider.getChildren({
       kind: 'pattern',
+      list: 'match',
       scope: userScope(),
       ruleIndex: 0,
       patternIndex: 0,
@@ -269,9 +312,76 @@ describe('子ノードの構成', () => {
     expect(children).toEqual([]);
   });
 
+  it('exclude のパターンも子として並ぶ（match の後）', async () => {
+    const target = rule({
+      capability: 'fs_write',
+      matchShape: 'list',
+      matches: [{ pattern: '**', line: 3 }],
+      exclude: {
+        patterns: [{ pattern: '.env', line: 5 }],
+        shape: 'list',
+        hasNonStringEntry: false,
+      },
+    });
+
+    const children = await provider.getChildren({
+      kind: 'rule',
+      scope: userScope(),
+      ruleIndex: 0,
+      rule: target,
+    });
+
+    expect(
+      children.map((child) =>
+        child.kind === 'pattern' ? [child.list, child.pattern.pattern] : [],
+      ),
+    ).toEqual([
+      ['match', '**'],
+      ['exclude', '.env'],
+    ]);
+  });
+
+  it('exclude 行はアイコンと description で区別し、id の名前空間も分ける', async () => {
+    const item = provider.getTreeItem({
+      kind: 'pattern',
+      list: 'exclude',
+      scope: userScope(),
+      ruleIndex: 2,
+      patternIndex: 0,
+      pattern: { pattern: '.env', line: 5 },
+    });
+
+    expect(item.id).toBe('user/2/exclude/0');
+    // 灰色の exclude アイコン。
+    expect(item.iconPath).toEqual(
+      new ThemeIcon('exclude', new ThemeColor('descriptionForeground')),
+    );
+    expect(item.description).toBe('exclude');
+    // アイコンだけではスクリーンリーダーに伝わらない。
+    expect(item.accessibilityInformation?.label).toBe('.env, exclude');
+    // match 行と同じくクリックでジャンプできる。
+    expect(item.command?.arguments?.[0]).toMatchObject({ line: 5 });
+  });
+
+  it('match 行は緑の歯車アイコンと match の description を持つ', async () => {
+    const item = provider.getTreeItem({
+      kind: 'pattern',
+      list: 'match',
+      scope: userScope(),
+      ruleIndex: 0,
+      patternIndex: 0,
+      pattern: { pattern: '**', line: 3 },
+    });
+
+    // allow の緑（testing.iconPassed）とは別の色 ID を使う。
+    expect(item.iconPath).toEqual(new ThemeIcon('gear', new ThemeColor('charts.green')));
+    expect(item.description).toBe('match');
+    expect(item.accessibilityInformation?.label).toBe('**, match');
+  });
+
   it('ルール行の子は match パターン', async () => {
     const target = rule({
-      matchOmitted: false,
+      matchShape: 'list',
       matches: [
         { pattern: 'a', line: 3 },
         { pattern: 'b', line: 4 },

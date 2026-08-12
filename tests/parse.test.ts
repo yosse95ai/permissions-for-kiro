@@ -16,14 +16,18 @@ describe('parsePermissions', () => {
     const result = parsePermissions(text);
 
     expect(result.errors).toEqual([]);
-    expect(result.warnings).toEqual([]);
+    expect(result.topLevelShape).toBe('mapping');
+    expect(result.rulesKey).toBe('ok');
     expect(result.rules).toHaveLength(1);
 
     const rule = result.rules[0]!;
+    expect(rule.index).toBe(0);
     expect(rule.capability).toBe('shell');
+    expect(rule.capabilityRaw).toBe('shell');
     expect(rule.effect).toBe('allow');
     expect(rule.line).toBe(1);
-    expect(rule.matchOmitted).toBe(false);
+    expect(rule.matchShape).toBe('list');
+    expect(rule.unknownFields).toEqual([]);
     expect(rule.matches).toEqual([
       { pattern: 'npm run build', line: 4 },
       { pattern: 'ls *', line: 5 },
@@ -44,24 +48,57 @@ describe('parsePermissions', () => {
     expect(patterns).toEqual(['zzz', 'aaa']);
   });
 
-  it('match が省略されている場合は matchOmitted になる', () => {
+  it('match が省略されている場合は shape が omitted になる', () => {
     const text = ['rules:', '  - capability: web_fetch', '    effect: allow'].join('\n');
 
     const rule = parsePermissions(text).rules[0]!;
 
-    expect(rule.matchOmitted).toBe(true);
+    expect(rule.matchShape).toBe('omitted');
     expect(rule.matches).toEqual([]);
   });
 
-  it('match が単一の文字列でも読める', () => {
+  it('match が単一文字列の場合も内容は読むが shape は scalar になる', () => {
+    // **Kiro ではこの書き方は fatal**（memory.md 3.4）。判定は validate.ts が行うので、
+    // ここでは形の事実だけを記録し、内容は表示のために保持する。
     const text = ['rules:', '  - capability: shell', '    effect: deny', '    match: sudo*'].join(
       '\n',
     );
 
     const rule = parsePermissions(text).rules[0]!;
 
-    expect(rule.matchOmitted).toBe(false);
+    expect(rule.matchShape).toBe('scalar');
     expect(rule.matches).toEqual([{ pattern: 'sudo*', line: 3 }]);
+  });
+
+  it('exclude も match と同じ形で読む', () => {
+    const text = [
+      'rules:',
+      '  - capability: fs_write',
+      '    effect: allow',
+      '    match:',
+      '      - "**"',
+      '    exclude:',
+      '      - .env',
+    ].join('\n');
+
+    const rule = parsePermissions(text).rules[0]!;
+
+    expect(rule.exclude.shape).toBe('list');
+    expect(rule.exclude.patterns).toEqual([{ pattern: '.env', line: 6 }]);
+  });
+
+  it('未知のキーを記録する（Kiro では fatal になる）', () => {
+    const text = [
+      'rules:',
+      '  - capability: shell',
+      '    effect: allow',
+      '    mach:',
+      '      - x',
+    ].join('\n');
+
+    const rule = parsePermissions(text).rules[0]!;
+
+    expect(rule.unknownFields).toEqual(['mach']);
   });
 
   it('複数ルールをそれぞれの行番号付きで返す', () => {
@@ -93,7 +130,7 @@ describe('parsePermissions', () => {
     const rule = parsePermissions(text).rules[0]!;
 
     expect(rule.capability).toBe('all');
-    expect(rule.matchOmitted).toBe(true);
+    expect(rule.matchShape).toBe('omitted');
   });
 
   it('JSON 形式も同じパーサで読める', () => {
@@ -112,49 +149,62 @@ describe('parsePermissions', () => {
   });
 
   describe('異常系', () => {
-    it('空文字列はルール 0 件で警告もなし', () => {
+    it('空文字列は topLevelShape が empty になる', () => {
+      // **Kiro は空ファイルを fail closed 扱いする**（`yaml.parse('')` が null になるため）。
+      // その判定は validate.ts が行う。
       const result = parsePermissions('');
 
       expect(result.rules).toEqual([]);
-      expect(result.warnings).toEqual([]);
+      expect(result.topLevelShape).toBe('empty');
       expect(result.errors).toEqual([]);
     });
 
-    it('空白のみの場合もルール 0 件', () => {
-      expect(parsePermissions('   \n\n  ').rules).toEqual([]);
+    it('空白のみ・コメントのみも empty', () => {
+      expect(parsePermissions('   \n\n  ').topLevelShape).toBe('empty');
+      expect(parsePermissions('# just a comment\n').topLevelShape).toBe('empty');
     });
 
-    it('rules キーが無い場合は警告する', () => {
+    it('トップレベルがマッピングでない場合は other', () => {
+      expect(parsePermissions('- a\n- b\n').topLevelShape).toBe('other');
+      expect(parsePermissions('just a string\n').topLevelShape).toBe('other');
+    });
+
+    it('rules キーが無い場合は rulesKey が missing', () => {
       const result = parsePermissions('something: else\n');
 
       expect(result.rules).toEqual([]);
-      expect(result.warnings).toHaveLength(1);
+      expect(result.topLevelShape).toBe('mapping');
+      expect(result.rulesKey).toBe('missing');
       expect(result.errors).toEqual([]);
     });
 
-    it('rules がリストでない場合は警告する', () => {
+    it('rules がリストでない場合は not-a-list', () => {
       const result = parsePermissions('rules: not-a-list\n');
 
       expect(result.rules).toEqual([]);
-      expect(result.warnings).toHaveLength(1);
+      expect(result.rulesKey).toBe('not-a-list');
     });
 
-    it('rules の要素がマッピングでない場合はスキップして警告する', () => {
+    it('rules の要素がマッピングでない場合は位置と行を記録する', () => {
       const text = ['rules:', '  - just-a-string', '  - capability: shell'].join('\n');
 
       const result = parsePermissions(text);
 
       expect(result.rules).toHaveLength(1);
-      expect(result.warnings).toHaveLength(1);
+      expect(result.nonMappingRules).toEqual([{ index: 0, line: 1 }]);
+      // 残ったルールは YAML 上の位置を保持する。
+      expect(result.rules[0]!.index).toBe(1);
     });
 
-    it('capability / effect が読めない場合は UNKNOWN になる', () => {
+    it('capability / effect が読めない場合は UNKNOWN になり raw は undefined', () => {
       const text = ['rules:', '  - match:', '      - foo'].join('\n');
 
       const rule = parsePermissions(text).rules[0]!;
 
       expect(rule.capability).toBe(UNKNOWN);
+      expect(rule.capabilityRaw).toBeUndefined();
       expect(rule.effect).toBe(UNKNOWN);
+      expect(rule.effectRaw).toBeUndefined();
     });
 
     it('壊れた YAML は行・列・コード付きのエラーを返す', () => {
@@ -192,13 +242,27 @@ describe('parsePermissions', () => {
       }
     });
 
-    it('数値や真偽値の capability も文字列として扱う', () => {
+    it('数値や真偽値の capability は表示はするが raw には入れない', () => {
+      // **Kiro は文字列でない capability を fatal 扱いする**ため、表示用の値と
+      // 規則判定用の値を分けている。
       const text = ['rules:', '  - capability: 123', '    effect: true'].join('\n');
 
       const rule = parsePermissions(text).rules[0]!;
 
       expect(rule.capability).toBe('123');
+      expect(rule.capabilityRaw).toBeUndefined();
       expect(rule.effect).toBe('true');
+      expect(rule.effectRaw).toBeUndefined();
+    });
+
+    it('match の要素に文字列でないものがあれば記録する', () => {
+      const text = ['rules:', '  - capability: shell', '    match:', '      - 42'].join('\n');
+
+      const rule = parsePermissions(text).rules[0]!;
+
+      expect(rule.hasNonStringMatchEntry).toBe(true);
+      // 内容は表示のために残す。
+      expect(rule.matches).toEqual([{ pattern: '42', line: 3 }]);
     });
   });
 });

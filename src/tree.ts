@@ -1,11 +1,17 @@
 import * as vscode from 'vscode';
 
 import {
-  effectAppearance,
+  type Appearance,
+  EXCLUDE_APPEARANCE,
   formatParseError,
   hasPatternChildren,
+  isScopeInactive,
+  MATCH_APPEARANCE,
   ruleAccessibilityLabel,
+  ruleAppearance,
   ruleDescription,
+  type RuleState,
+  ruleStateOf,
   scopeDescription,
 } from './display';
 import { loadScopes, rulesOf, type ScopeData } from './model';
@@ -25,6 +31,8 @@ export interface RevealTarget {
   line: number;
 }
 
+export type PatternListKind = 'match' | 'exclude';
+
 export type TreeNode =
   | { kind: 'scope'; scope: ScopeData }
   | { kind: 'rule'; scope: ScopeData; ruleIndex: number; rule: PermissionRule }
@@ -34,6 +42,8 @@ export type TreeNode =
       ruleIndex: number;
       patternIndex: number;
       pattern: MatchPattern;
+      /** どちらのリストのパターンか。`TreeItem.id` の衝突を避けるためにも必要（Q35） */
+      list: PatternListKind;
     }
   | {
       kind: 'message';
@@ -46,14 +56,16 @@ export type TreeNode =
       line?: number;
     };
 
-interface Appearance {
-  icon: string;
-  color?: string;
+/** `Appearance` から `ThemeIcon` を作る。色が無ければ既定色になる。 */
+function themeIcon(appearance: Appearance): vscode.ThemeIcon {
+  return appearance.color === undefined
+    ? new vscode.ThemeIcon(appearance.icon)
+    : new vscode.ThemeIcon(appearance.icon, new vscode.ThemeColor(appearance.color));
 }
 
 function revealCommand(filePath: string, line: number): vscode.Command {
   return {
-    title: 'Go to Definition',
+    title: vscode.l10n.t('Go to Definition'),
     command: REVEAL_LOCATION_COMMAND,
     arguments: [{ filePath, line } satisfies RevealTarget],
   };
@@ -91,13 +103,11 @@ export class PermissionsTreeDataProvider implements vscode.TreeDataProvider<Tree
     }
 
     if (element.kind === 'rule') {
-      return element.rule.matches.map((pattern, patternIndex) => ({
-        kind: 'pattern',
-        scope: element.scope,
-        ruleIndex: element.ruleIndex,
-        patternIndex,
-        pattern,
-      }));
+      // `match` を先に、`exclude` を後に。YAML の記載順と同じ並びになる。
+      return [
+        ...patternNodes(element.scope, element.ruleIndex, element.rule.matches, 'match'),
+        ...patternNodes(element.scope, element.ruleIndex, element.rule.exclude.patterns, 'exclude'),
+      ];
     }
 
     // パターン行とメッセージ行は葉。
@@ -112,14 +122,16 @@ export class PermissionsTreeDataProvider implements vscode.TreeDataProvider<Tree
       return ruleTreeItem(node.scope, node.ruleIndex, node.rule);
     }
     if (node.kind === 'pattern') {
-      return patternTreeItem(node.scope, node.ruleIndex, node.patternIndex, node.pattern);
+      return patternTreeItem(node);
     }
     return messageTreeItem(node);
   }
 }
 
+const ERROR_ICON = { icon: 'error', color: 'errorForeground' };
+
 function scopeChildren(scope: ScopeData): TreeNode[] {
-  const { content } = scope;
+  const { content, validation } = scope;
 
   if (content.state === 'missing') {
     return [
@@ -127,7 +139,7 @@ function scopeChildren(scope: ScopeData): TreeNode[] {
         kind: 'message',
         scope,
         slug: 'missing',
-        label: 'Click the pencil to create',
+        label: vscode.l10n.t('Click the pencil to create'),
       },
     ];
   }
@@ -139,12 +151,12 @@ function scopeChildren(scope: ScopeData): TreeNode[] {
         scope,
         slug: 'read-error',
         label: content.message,
-        icon: { icon: 'error', color: 'errorForeground' },
+        icon: ERROR_ICON,
       },
     ];
   }
 
-  const { errors, warnings } = content.result;
+  const { errors } = content.result;
 
   if (errors.length > 0) {
     return errors.map((error, index) => ({
@@ -152,11 +164,24 @@ function scopeChildren(scope: ScopeData): TreeNode[] {
       scope,
       slug: `error:${index}`,
       label: formatParseError(error),
-      icon: { icon: 'error', color: 'errorForeground' },
+      icon: ERROR_ICON,
       line: error.line,
     }));
   }
 
+  // 設定が読み込まれていない原因を先頭に置く。**クリックで原因の行へジャンプできる**
+  // ようにするのが要点（Q33 の案 b）。
+  const problems: TreeNode[] = validation.fatal.map((problem, index) => ({
+    kind: 'message',
+    scope,
+    slug: `fatal:${index}`,
+    label: problem.message,
+    icon: ERROR_ICON,
+    line: problem.line,
+  }));
+
+  // fatal でもルール行は残す。ファイルに何が書かれているかを確認したい用途があるため。
+  // 見た目は `ruleTreeItem` 側で無彩色に落とす。
   const rules: TreeNode[] = rulesOf(scope).map((rule, ruleIndex) => ({
     kind: 'rule',
     scope,
@@ -164,64 +189,77 @@ function scopeChildren(scope: ScopeData): TreeNode[] {
     rule,
   }));
 
-  // 警告は tooltip にも入れているが、ルールが 1 件も読めなかった場合は
-  // 何も表示されなくなるため行として出す。
-  if (rules.length === 0 && warnings.length > 0) {
-    return warnings.map((warning, index) => ({
-      kind: 'message',
-      scope,
-      slug: `warning:${index}`,
-      label: warning,
-      icon: { icon: 'warning', color: 'editorWarning.foreground' },
-    }));
-  }
-
-  return rules;
+  return [...problems, ...rules];
 }
 
 function scopeTreeItem(scope: ScopeData): vscode.TreeItem {
   const item = new vscode.TreeItem(scope.label, vscode.TreeItemCollapsibleState.Expanded);
 
+  const description = scopeDescription(scope.content, scope.validation);
+
   item.id = scope.key;
-  item.description = scopeDescription(scope.content);
+  item.description = description;
   item.contextValue = SCOPE_CONTEXT_VALUE;
   item.resourceUri = vscode.Uri.file(scope.file.filePath);
 
   // Workspace は白、User は紫。`milestone` は AGENT STEERING & SKILLS と同じアイコン。
-  const color = scope.kind === 'user' ? 'charts.purple' : 'icon.foreground';
+  // 読み込まれていないスコープは赤にして、折りたたんでいても異常が分かるようにする（Q33）。
+  const color = scopeInactive(scope)
+    ? 'errorForeground'
+    : scope.kind === 'user'
+      ? 'charts.purple'
+      : 'icon.foreground';
   item.iconPath = new vscode.ThemeIcon('milestone', new vscode.ThemeColor(color));
 
   item.tooltip = scopeTooltip(scope);
-  item.accessibilityInformation = {
-    label: `${scope.label}, ${scopeDescription(scope.content)}`,
-  };
+  item.accessibilityInformation = { label: `${scope.label}, ${description}` };
 
   return item;
+}
+
+function scopeInactive(scope: ScopeData): boolean {
+  return isScopeInactive(scope.content, scope.validation);
 }
 
 function scopeTooltip(scope: ScopeData): vscode.MarkdownString {
   const lines: string[] = [];
 
-  lines.push(scope.kind === 'user' ? '**User scope**' : '**Workspace scope**');
+  lines.push(
+    scope.kind === 'user'
+      ? `**${vscode.l10n.t('User scope')}**`
+      : `**${vscode.l10n.t('Workspace scope')}**`,
+  );
   lines.push('');
   lines.push(`\`${scope.file.filePath}\``);
 
   if (!scope.file.exists) {
-    lines.push('', 'The file does not exist yet.');
+    lines.push('', vscode.l10n.t('The file does not exist yet.'));
   }
 
   if (scope.kind === 'workspace') {
-    lines.push('', `Hash: \`${scope.hash}\``);
+    lines.push('', `${vscode.l10n.t('Hash:')} \`${scope.hash}\``);
     if (scope.resolvedVia !== 'hash') {
       // 通常は `hash` で解決する。それ以外はハッシュ規則が想定と違った可能性を示す。
-      lines.push(`Resolved via: \`${scope.resolvedVia}\``);
+      // `resolvedVia` の値そのものは内部の識別子なので訳さない（Q31）。
+      lines.push(`${vscode.l10n.t('Resolved via:')} \`${scope.resolvedVia}\``);
     }
   }
 
-  if (scope.content.state === 'parsed' && scope.content.result.warnings.length > 0) {
-    lines.push('', '**Warnings**');
-    for (const warning of scope.content.result.warnings) {
-      lines.push(`- ${warning}`);
+  const { fatal, skipped } = scope.validation;
+
+  if (fatal.length > 0) {
+    lines.push('', `**${vscode.l10n.t('Not loaded')}**`);
+    lines.push(vscode.l10n.t('Kiro could not load this file, so none of these rules apply.'));
+    // 原因の本文は英語のまま。Kiro 本体の通知と突き合わせられるようにする（Q31）。
+    for (const problem of fatal) {
+      lines.push(`- ${problem.message}`);
+    }
+  }
+
+  if (skipped.size > 0) {
+    lines.push('', `**${vscode.l10n.t('Skipped rules')}**`);
+    for (const problem of skipped.values()) {
+      lines.push(`- ${problem.message}`);
     }
   }
 
@@ -235,26 +273,22 @@ function ruleTreeItem(scope: ScopeData, ruleIndex: number, rule: PermissionRule)
     hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
   );
 
+  const state = ruleStateOf(ruleIndex, scope.validation, scopeInactive(scope));
+
   item.id = `${scope.key}/${ruleIndex}`;
-  item.description = ruleDescription(rule);
+  item.description = ruleDescription(rule, state);
 
-  const appearance = effectAppearance(rule.effect);
-  item.iconPath = new vscode.ThemeIcon(appearance.icon, new vscode.ThemeColor(appearance.color));
+  item.iconPath = themeIcon(ruleAppearance(rule, state));
 
-  item.tooltip = new vscode.MarkdownString(
-    [
-      `\`${rule.capability}\` / \`${rule.effect}\``,
-      '',
-      ...(rule.matchOmitted
-        ? ['No `match` key, so this applies to everything.']
-        : rule.matches.map((match) => `- \`${match.pattern}\``)),
-    ].join('\n'),
-  );
-
-  item.accessibilityInformation = { label: ruleAccessibilityLabel(rule) };
+  item.tooltip = ruleTooltip(scope, ruleIndex, rule, state);
+  item.accessibilityInformation = { label: ruleAccessibilityLabel(rule, state) };
 
   // 子を持つ行に `command` を付けると、展開のトグルと同時にエディタが開いてしまう
-  // （memory.md 4.2 のクリック挙動の項）。子を持たない行だけクリックでジャンプさせる。
+  // （memory.md 4.2 のクリック挙動の項）。
+  //
+  // **子を持たないのは `all` のルール（`match` 省略かつ `exclude` 無し）だけ**（Q36）。
+  // この行にだけジャンプを割り当てる。そうしないと、パターン行を持たないルールへ飛ぶ手段が
+  // 一切なくなる。
   if (!hasChildren) {
     item.command = revealCommand(scope.file.filePath, rule.line);
   }
@@ -262,17 +296,90 @@ function ruleTreeItem(scope: ScopeData, ruleIndex: number, rule: PermissionRule)
   return item;
 }
 
-function patternTreeItem(
+function ruleTooltip(
   scope: ScopeData,
   ruleIndex: number,
-  patternIndex: number,
-  pattern: MatchPattern,
-): vscode.TreeItem {
+  rule: PermissionRule,
+  state: RuleState,
+): vscode.MarkdownString {
+  const lines: string[] = [];
+
+  // 効いていない理由を先頭に置く。パターンの一覧より重要な情報なので上に出す。
+  if (state === 'skipped') {
+    const problem = scope.validation.skipped.get(ruleIndex);
+    lines.push(
+      `**${vscode.l10n.t('Skipped by Kiro')}**`,
+      vscode.l10n.t('This rule has no effect until the file is fixed.'),
+    );
+    if (problem !== undefined) {
+      lines.push('', `\`${problem.message}\``);
+    }
+    lines.push('');
+  } else if (state === 'inactive') {
+    lines.push(
+      `**${vscode.l10n.t('Not loaded')}**`,
+      vscode.l10n.t('Kiro could not load this file, so none of these rules apply.'),
+      '',
+    );
+  }
+
+  lines.push(`\`${rule.capability}\` / \`${rule.effect}\``, '');
+
+  if (rule.matchShape === 'omitted') {
+    lines.push('No `match` key, so this applies to everything.');
+  } else {
+    lines.push(...rule.matches.map((match) => `- \`${match.pattern}\``));
+  }
+
+  // `exclude` は行としては出していないので、少なくとも tooltip では見せる。
+  if (rule.exclude.patterns.length > 0) {
+    lines.push('', '`exclude`');
+    lines.push(...rule.exclude.patterns.map((entry) => `- \`${entry.pattern}\``));
+  }
+
+  return new vscode.MarkdownString(lines.join('\n'));
+}
+
+function patternNodes(
+  scope: ScopeData,
+  ruleIndex: number,
+  patterns: MatchPattern[],
+  list: PatternListKind,
+): TreeNode[] {
+  return patterns.map((pattern, patternIndex) => ({
+    kind: 'pattern',
+    scope,
+    ruleIndex,
+    patternIndex,
+    pattern,
+    list,
+  }));
+}
+
+function patternTreeItem(node: Extract<TreeNode, { kind: 'pattern' }>): vscode.TreeItem {
+  const { scope, ruleIndex, patternIndex, pattern, list } = node;
   const item = new vscode.TreeItem(pattern.pattern, vscode.TreeItemCollapsibleState.None);
 
-  item.id = `${scope.key}/${ruleIndex}/${patternIndex}`;
-  // アイコンもペンシルも置かない。親の行に capability のアイコンがあり、階層はインデントで伝わる。
-  item.tooltip = pattern.pattern;
+  // `match` と `exclude` で名前空間を分ける。同じ添字が両方に存在するため（Q35）。
+  item.id = `${scope.key}/${ruleIndex}/${list}/${patternIndex}`;
+
+  if (list === 'exclude') {
+    // 灰色の `exclude` アイコン。`match` の歯車と形も色も違うので区別できる。
+    item.iconPath = themeIcon(EXCLUDE_APPEARANCE);
+    // `exclude` は YAML のキー名なので訳さない（Q31 の識別子の扱い）。
+    item.description = 'exclude';
+    item.accessibilityInformation = { label: `${pattern.pattern}, exclude` };
+    item.tooltip = new vscode.MarkdownString(
+      [`\`${pattern.pattern}\``, '', vscode.l10n.t('Excluded from this rule.')].join('\n'),
+    );
+  } else {
+    item.iconPath = themeIcon(MATCH_APPEARANCE);
+    // `exclude` と対称にする。`match` も YAML のキー名なので訳さない。
+    item.description = 'match';
+    item.accessibilityInformation = { label: `${pattern.pattern}, match` };
+    item.tooltip = pattern.pattern;
+  }
+
   item.command = revealCommand(scope.file.filePath, pattern.line);
 
   return item;
@@ -284,10 +391,7 @@ function messageTreeItem(node: Extract<TreeNode, { kind: 'message' }>): vscode.T
   item.id = `${node.scope.key}/${node.slug}`;
 
   if (node.icon !== undefined) {
-    item.iconPath =
-      node.icon.color === undefined
-        ? new vscode.ThemeIcon(node.icon.icon)
-        : new vscode.ThemeIcon(node.icon.icon, new vscode.ThemeColor(node.icon.color));
+    item.iconPath = themeIcon(node.icon);
   }
 
   item.tooltip = node.label;
