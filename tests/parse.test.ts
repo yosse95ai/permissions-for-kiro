@@ -255,6 +255,33 @@ describe('parsePermissions', () => {
       expect(rule.effectRaw).toBeUndefined();
     });
 
+    it('match がマッピングの場合は shape が other になる', () => {
+      const text = ['rules:', '  - capability: shell', '    match:', '      key: value'].join('\n');
+
+      const rule = parsePermissions(text).rules[0]!;
+
+      expect(rule.matchShape).toBe('other');
+      expect(rule.matches).toEqual([]);
+    });
+
+    it('exclude がマッピングの場合も other になる', () => {
+      const text = ['rules:', '  - capability: shell', '    exclude:', '      key: value'].join(
+        '\n',
+      );
+
+      expect(parsePermissions(text).rules[0]!.exclude.shape).toBe('other');
+    });
+
+    it('capability が null の場合は UNKNOWN になる', () => {
+      // `capability:` と書いて値を書かなかったケース。
+      const text = ['rules:', '  - capability:', '    effect: allow'].join('\n');
+
+      const rule = parsePermissions(text).rules[0]!;
+
+      expect(rule.capability).toBe(UNKNOWN);
+      expect(rule.capabilityRaw).toBeUndefined();
+    });
+
     it('match の要素に文字列でないものがあれば記録する', () => {
       const text = ['rules:', '  - capability: shell', '    match:', '      - 42'].join('\n');
 

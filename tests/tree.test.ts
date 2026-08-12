@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ThemeColor, ThemeIcon, TreeItemCollapsibleState, Uri } from 'vscode';
+import { MarkdownString, ThemeColor, ThemeIcon, TreeItemCollapsibleState, Uri } from 'vscode';
 
 import type { ScopeData } from '../src/model';
 import type { ParseResult, PermissionRule } from '../src/parse';
@@ -39,7 +39,7 @@ function userScope(overrides: Partial<ParseResult> = {}): ScopeData {
   };
 }
 
-function missingWorkspaceScope(): ScopeData {
+function missingWorkspaceScope(overrides: Partial<ScopeData> = {}): ScopeData {
   return {
     kind: 'workspace',
     key: 'workspace:/Users/test/project',
@@ -55,7 +55,25 @@ function missingWorkspaceScope(): ScopeData {
     folder: { uri: Uri.file('/Users/test/project'), name: 'project', index: 0 },
     content: { state: 'missing' },
     validation: okValidation(),
+    ...overrides,
   };
+}
+
+/**
+ * tooltip の本文を取り出す。
+ *
+ * 型アサーションを避けるために `instanceof` で絞る（`no-unsafe-type-assertion`）。
+ * 実行時は alias によりモックの `MarkdownString` になる。
+ */
+function tooltipOf(item: { tooltip?: unknown }): string {
+  const { tooltip } = item;
+  if (tooltip instanceof MarkdownString) {
+    return tooltip.value;
+  }
+  if (typeof tooltip === 'string') {
+    return tooltip;
+  }
+  throw new Error('tooltip is not set');
 }
 
 describe('スコープ行', () => {
@@ -398,5 +416,253 @@ describe('子ノードの構成', () => {
     expect(
       children.map((child) => (child.kind === 'pattern' ? child.pattern.pattern : '')),
     ).toEqual(['a', 'b']);
+  });
+});
+
+describe('スコープ行の tooltip', () => {
+  it('スコープの種別とファイルのパスを載せる', () => {
+    const item = provider.getTreeItem({ kind: 'scope', scope: userScope() });
+
+    const tooltip = tooltipOf(item);
+    expect(tooltip).toContain('User scope');
+    expect(tooltip).toContain('/home/test/.kiro/settings/permissions.yaml');
+  });
+
+  it('ワークスペースはハッシュを載せる', () => {
+    const item = provider.getTreeItem({ kind: 'scope', scope: missingWorkspaceScope() });
+
+    const tooltip = tooltipOf(item);
+    expect(tooltip).toContain('Workspace scope');
+    expect(tooltip).toContain('0654434d556baf69');
+  });
+
+  it('ファイルが無いことを明記する', () => {
+    const item = provider.getTreeItem({ kind: 'scope', scope: missingWorkspaceScope() });
+
+    expect(tooltipOf(item)).toContain('The file does not exist yet.');
+  });
+
+  it('ハッシュ以外の経路で解決した場合は resolvedVia を載せる', () => {
+    // ハッシュ規則が想定と変わったときの診断材料になる。
+    const item = provider.getTreeItem({
+      kind: 'scope',
+      scope: missingWorkspaceScope({ resolvedVia: 'reverse-scan' }),
+    });
+
+    expect(tooltipOf(item)).toContain('reverse-scan');
+  });
+
+  it('ハッシュで解決した場合は resolvedVia を載せない（既定の経路なので）', () => {
+    const item = provider.getTreeItem({ kind: 'scope', scope: missingWorkspaceScope() });
+
+    expect(tooltipOf(item)).not.toContain('Resolved via');
+  });
+
+  it('User スコープにはハッシュを載せない', () => {
+    const item = provider.getTreeItem({ kind: 'scope', scope: userScope() });
+
+    expect(tooltipOf(item)).not.toContain('Hash:');
+  });
+
+  it('fatal があれば原因を一覧にする', () => {
+    const item = provider.getTreeItem({ kind: 'scope', scope: userScope({ rulesKey: 'missing' }) });
+
+    const tooltip = tooltipOf(item);
+    expect(tooltip).toContain('Not loaded');
+    expect(tooltip).toContain('Policy must contain a "rules" array');
+  });
+
+  it('skip されたルールを一覧にする', () => {
+    const scope = userScope({
+      rules: [rule({ capability: 'dev', capabilityRaw: 'dev' })],
+    });
+
+    const item = provider.getTreeItem({ kind: 'scope', scope });
+
+    const tooltip = tooltipOf(item);
+    expect(tooltip).toContain('Skipped rules');
+    expect(tooltip).toContain('unknown capability "dev"');
+  });
+
+  it('問題がなければ Not loaded も Skipped rules も載せない', () => {
+    const item = provider.getTreeItem({ kind: 'scope', scope: userScope({ rules: [rule()] }) });
+
+    const tooltip = tooltipOf(item);
+    expect(tooltip).not.toContain('Not loaded');
+    expect(tooltip).not.toContain('Skipped rules');
+  });
+});
+
+describe('ルール行の tooltip', () => {
+  it('capability と effect、パターンの一覧を載せる', () => {
+    const scope = userScope({ rules: [rule()] });
+    const target = rule({
+      matchShape: 'list',
+      matches: [
+        { pattern: 'npm test', line: 3 },
+        { pattern: 'ls *', line: 4 },
+      ],
+    });
+
+    const item = provider.getTreeItem({ kind: 'rule', scope, ruleIndex: 0, rule: target });
+
+    const tooltip = tooltipOf(item);
+    expect(tooltip).toContain('shell');
+    expect(tooltip).toContain('allow');
+    expect(tooltip).toContain('npm test');
+    expect(tooltip).toContain('ls *');
+  });
+
+  it('match 省略のときは全対象であることを説明する', () => {
+    const scope = userScope({ rules: [rule()] });
+
+    const item = provider.getTreeItem({ kind: 'rule', scope, ruleIndex: 0, rule: rule() });
+
+    expect(tooltipOf(item)).toContain('applies to everything');
+  });
+
+  it('exclude のパターンも載せる', () => {
+    const target = rule({
+      exclude: {
+        patterns: [{ pattern: '.env', line: 6 }],
+        shape: 'list',
+        hasNonStringEntry: false,
+      },
+    });
+    const scope = userScope({ rules: [target] });
+
+    const item = provider.getTreeItem({ kind: 'rule', scope, ruleIndex: 0, rule: target });
+
+    const tooltip = tooltipOf(item);
+    expect(tooltip).toContain('exclude');
+    expect(tooltip).toContain('.env');
+  });
+
+  it('skip されたルールは理由を先頭に載せる', () => {
+    const target = rule({ capability: 'dev', capabilityRaw: 'dev' });
+    const scope = userScope({ rules: [target] });
+
+    const item = provider.getTreeItem({ kind: 'rule', scope, ruleIndex: 0, rule: target });
+
+    const tooltip = tooltipOf(item);
+    expect(tooltip).toContain('Skipped by Kiro');
+    expect(tooltip).toContain('has no effect until the file is fixed');
+    expect(tooltip).toContain('unknown capability "dev"');
+    // 理由がパターンの説明より前に来る。
+    expect(tooltip.indexOf('Skipped by Kiro')).toBeLessThan(
+      tooltip.indexOf('applies to everything'),
+    );
+  });
+
+  it('読み込まれていないスコープのルールはその旨を載せる', () => {
+    const target = rule();
+    const scope = userScope({ rules: [target], rulesKey: 'not-a-list' });
+
+    const item = provider.getTreeItem({ kind: 'rule', scope, ruleIndex: 0, rule: target });
+
+    const tooltip = tooltipOf(item);
+    expect(tooltip).toContain('Not loaded');
+    expect(tooltip).toContain('none of these rules apply');
+  });
+});
+
+describe('パターン行の tooltip', () => {
+  it('match 行はパターン文字列そのもの', () => {
+    const item = provider.getTreeItem({
+      kind: 'pattern',
+      list: 'match',
+      scope: userScope(),
+      ruleIndex: 0,
+      patternIndex: 0,
+      pattern: { pattern: 'npm run build', line: 3 },
+    });
+
+    expect(tooltipOf(item)).toBe('npm run build');
+  });
+
+  it('exclude 行は除外であることを説明する', () => {
+    const item = provider.getTreeItem({
+      kind: 'pattern',
+      list: 'exclude',
+      scope: userScope(),
+      ruleIndex: 0,
+      patternIndex: 0,
+      pattern: { pattern: '.env', line: 6 },
+    });
+
+    const tooltip = tooltipOf(item);
+    expect(tooltip).toContain('.env');
+    expect(tooltip).toContain('Excluded from this rule.');
+  });
+});
+
+describe('ルート要素', () => {
+  it('スコープの一覧を返す', async () => {
+    // 実 HOME を読むため内容は環境依存。**必ず User スコープが含まれる**ことだけを見る。
+    const children = await provider.getChildren();
+
+    expect(children.length).toBeGreaterThanOrEqual(1);
+    expect(children.every((child) => child.kind === 'scope')).toBe(true);
+    expect(children.some((child) => child.kind === 'scope' && child.scope.kind === 'user')).toBe(
+      true,
+    );
+  });
+
+  /** ルート要素から `ScopeData` を取り出す。TreeNode は毎回作り直されるため中身を見る。 */
+  async function loadedScopes(): Promise<ScopeData[]> {
+    const children = await provider.getChildren();
+    return children.map((child) => {
+      if (child.kind !== 'scope') {
+        throw new Error('root children must be scopes');
+      }
+      return child.scope;
+    });
+  }
+
+  it('2 回目は読み込み結果を再利用する', async () => {
+    const first = await loadedScopes();
+    const second = await loadedScopes();
+
+    // ルートの読み込みはファイル I/O を伴うため、refresh まで結果を保持する。
+    // TreeNode 自体は毎回作られるが、中の ScopeData は同じインスタンスになる。
+    expect(second[0]).toBe(first[0]);
+  });
+
+  it('refresh すると読み直す', async () => {
+    const first = await loadedScopes();
+
+    provider.refresh();
+    const second = await loadedScopes();
+
+    expect(second[0]).not.toBe(first[0]);
+  });
+});
+
+describe('読み込みエラー', () => {
+  it('read-error のスコープはメッセージを子として出す', async () => {
+    const scope: ScopeData = {
+      ...userScope(),
+      content: { state: 'read-error', message: 'EACCES: permission denied' },
+    };
+
+    const children = await provider.getChildren({ kind: 'scope', scope });
+
+    expect(children).toHaveLength(1);
+    expect(children[0]).toMatchObject({
+      kind: 'message',
+      slug: 'read-error',
+      label: 'EACCES: permission denied',
+    });
+  });
+
+  it('read-error のスコープ行は read error と表示する', () => {
+    const scope: ScopeData = {
+      ...userScope(),
+      content: { state: 'read-error', message: 'EACCES' },
+    };
+
+    const item = provider.getTreeItem({ kind: 'scope', scope });
+
+    expect(item.description).toBe('read error');
   });
 });

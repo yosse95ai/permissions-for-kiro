@@ -228,3 +228,77 @@ describe('resolveWorkspaceScope', () => {
     expect(result.exists).toBe(true);
   });
 });
+
+describe('reverse-scan の異常系', () => {
+  const root = '/Users/test/project';
+
+  it('workspace-roots が存在しない場合は既定の場所を返す', async () => {
+    // 初回起動直後など。エラーにせず「未設定」として扱う。
+    const result = await resolveWorkspaceScope(root, home, 'darwin');
+
+    expect(result.resolvedVia).toBe('hash');
+    expect(result.hash).toBe(workspaceRootHash(root, 'darwin'));
+    expect(result.exists).toBe(false);
+  });
+
+  it('.trust-migration.json が壊れていても走査を続ける', async () => {
+    const broken = path.join(workspaceRootsDir(home), 'bbbbbbbbbbbbbbbb');
+    await write(path.join(broken, '.trust-migration.json'), '{ not json');
+
+    const good = path.join(workspaceRootsDir(home), 'cccccccccccccccc');
+    await write(path.join(good, '.trust-migration.json'), JSON.stringify({ root }));
+
+    const result = await resolveWorkspaceScope(root, home, 'darwin');
+
+    expect(result.resolvedVia).toBe('reverse-scan');
+    expect(result.hash).toBe('cccccccccccccccc');
+  });
+
+  it('root キーが無い .trust-migration.json は無視する', async () => {
+    const dir = path.join(workspaceRootsDir(home), 'dddddddddddddddd');
+    await write(path.join(dir, '.trust-migration.json'), JSON.stringify({ migratedAt: 'x' }));
+
+    const result = await resolveWorkspaceScope(root, home, 'darwin');
+
+    expect(result.resolvedVia).toBe('hash');
+  });
+
+  it('root が文字列でない .trust-migration.json は無視する', async () => {
+    const dir = path.join(workspaceRootsDir(home), 'eeeeeeeeeeeeeeee');
+    await write(path.join(dir, '.trust-migration.json'), JSON.stringify({ root: 42 }));
+
+    const result = await resolveWorkspaceScope(root, home, 'darwin');
+
+    expect(result.resolvedVia).toBe('hash');
+  });
+
+  it('JSON が配列でも例外にならない', async () => {
+    const dir = path.join(workspaceRootsDir(home), 'ffffffffffffffff');
+    await write(path.join(dir, '.trust-migration.json'), JSON.stringify(['nope']));
+
+    const result = await resolveWorkspaceScope(root, home, 'darwin');
+
+    expect(result.resolvedVia).toBe('hash');
+  });
+
+  it('.trust-migration.json が無いディレクトリだけの場合も既定の場所を返す', async () => {
+    await fs.mkdir(path.join(workspaceRootsDir(home), '1111111111111111'), { recursive: true });
+
+    const result = await resolveWorkspaceScope(root, home, 'darwin');
+
+    expect(result.resolvedVia).toBe('hash');
+    expect(result.exists).toBe(false);
+  });
+
+  it('別のワークスペースの .trust-migration.json には反応しない', async () => {
+    const dir = path.join(workspaceRootsDir(home), '2222222222222222');
+    await write(
+      path.join(dir, '.trust-migration.json'),
+      JSON.stringify({ root: '/Users/test/other-project' }),
+    );
+
+    const result = await resolveWorkspaceScope(root, home, 'darwin');
+
+    expect(result.resolvedVia).toBe('hash');
+  });
+});

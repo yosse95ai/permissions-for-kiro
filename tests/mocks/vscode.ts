@@ -157,6 +157,75 @@ export const createdWatchers: FileSystemWatcherMock[] = [];
 const workspaceFoldersEmitter = new EventEmitter<void>();
 const saveEmitter = new EventEmitter<{ uri: Uri }>();
 
+export interface DocumentMock {
+  uri: Uri;
+  lineCount: number;
+}
+
+/** `showTextDocument` が返すエディタ。カーソル移動と `revealRange` を記録する。 */
+export class TextEditorMock {
+  selection: Selection | undefined;
+  readonly revealed: Array<{ range: Range; type: TextEditorRevealType }> = [];
+
+  constructor(public readonly document: DocumentMock) {}
+
+  revealRange(range: Range, type: TextEditorRevealType): void {
+    this.revealed.push({ range, type });
+  }
+}
+
+/**
+ * `openTextDocument` の振る舞いをテストから制御する。
+ *
+ * `lineCount` は `revealLocation` の行の丸め込みを確かめるために使う。
+ */
+export const documentState = {
+  lineCount: 1,
+  /** 設定すると `openTextDocument` が throw する */
+  failWith: undefined as Error | undefined,
+};
+
+/** `showErrorMessage` に渡されたメッセージ。 */
+export const shownErrors: string[] = [];
+
+/** `showTextDocument` で開かれたエディタと、そのとき渡されたオプション。 */
+export const openedEditors: TextEditorMock[] = [];
+export const showTextDocumentOptions: Array<{ preview?: boolean } | undefined> = [];
+
+type CommandHandler = (...args: never[]) => unknown;
+
+/** `registerCommand` で登録されたハンドラ。 */
+export const registeredCommands = new Map<string, CommandHandler>();
+
+/**
+ * 登録済みのコマンドを実行する。
+ *
+ * `Reflect.apply` を使うのは、型アサーションを避けるため（`no-unsafe-type-assertion`）。
+ */
+export async function executeCommand(command: string, ...args: unknown[]): Promise<unknown> {
+  const handler = registeredCommands.get(command);
+  if (handler === undefined) {
+    throw new Error(`command is not registered: ${command}`);
+  }
+  return Reflect.apply(handler, undefined, args);
+}
+
+/** `createTreeView` で作られたビュー。 */
+export const createdTreeViews: TreeViewMock[] = [];
+
+export class TreeViewMock {
+  disposed = false;
+
+  constructor(
+    public readonly id: string,
+    public readonly options: unknown,
+  ) {}
+
+  dispose(): void {
+    this.disposed = true;
+  }
+}
+
 /** テストからワークスペースフォルダの変更を発火する。 */
 export function fireWorkspaceFoldersChange(): void {
   workspaceFoldersEmitter.fire();
@@ -171,12 +240,24 @@ export function fireDidSaveTextDocument(fsPath: string): void {
 export function resetMocks(): void {
   createdWatchers.length = 0;
   workspace.workspaceFolders = undefined;
+  documentState.lineCount = 1;
+  documentState.failWith = undefined;
+  shownErrors.length = 0;
+  openedEditors.length = 0;
+  showTextDocumentOptions.length = 0;
+  registeredCommands.clear();
+  createdTreeViews.length = 0;
 }
 
 /** テストから差し替えられるようにミュータブルにしている。 */
 export const workspace = {
   workspaceFolders: undefined as Array<{ uri: Uri; name: string; index: number }> | undefined,
-  openTextDocument: async (uri: Uri) => ({ uri, lineCount: 1 }),
+  openTextDocument: async (uri: Uri): Promise<DocumentMock> => {
+    if (documentState.failWith !== undefined) {
+      throw documentState.failWith;
+    }
+    return { uri, lineCount: documentState.lineCount };
+  },
   createFileSystemWatcher: (pattern: RelativePattern): FileSystemWatcherMock => {
     const watcher = new FileSystemWatcherMock(pattern);
     createdWatchers.push(watcher);
@@ -187,17 +268,36 @@ export const workspace = {
 };
 
 export const window = {
-  showErrorMessage: async (message: string) => message,
-  showTextDocument: async () => {
-    throw new Error('showTextDocument is not implemented in the mock');
+  showErrorMessage: async (message: string) => {
+    shownErrors.push(message);
+    return message;
   },
-  createTreeView: () => {
-    throw new Error('createTreeView is not implemented in the mock');
+  showTextDocument: async (
+    document: DocumentMock,
+    options?: { preview?: boolean },
+  ): Promise<TextEditorMock> => {
+    const editor = new TextEditorMock(document);
+    openedEditors.push(editor);
+    showTextDocumentOptions.push(options);
+    return editor;
+  },
+  createTreeView: (id: string, options: unknown): TreeViewMock => {
+    const view = new TreeViewMock(id, options);
+    createdTreeViews.push(view);
+    return view;
   },
 };
 
 export const commands = {
-  registerCommand: (command: string) => ({ dispose: () => undefined, command }),
+  registerCommand: (command: string, handler: CommandHandler) => {
+    registeredCommands.set(command, handler);
+    return {
+      dispose: () => {
+        registeredCommands.delete(command);
+      },
+      command,
+    };
+  },
 };
 
 /**
