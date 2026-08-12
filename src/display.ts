@@ -237,11 +237,31 @@ export function ruleStateOf(
 }
 
 /**
- * パースエラー 1 件の表示。行番号は 1-based に直して見せる。
+ * `yaml` パッケージのメッセージ末尾に付く位置情報。
+ *
+ * ```
+ * Sequence item without - indicator at line 3, column 1:
+ * ```
+ *
+ * `formatParseError` は先頭に `Line N:` を付けるため、この末尾は重複する。
+ */
+const POSITION_SUFFIX = / at line \d+, column \d+:?$/;
+
+/**
+ * パースエラー 1 件のラベル。行番号は 1-based に直して見せる。
+ *
+ * **1 行目だけを使い、末尾の位置情報を落とす**（Q37 = D）。`yaml` パッケージの `message` は
+ * 説明文 + 該当箇所のスニペット + キャレットの**複数行**で、`TreeItem.label` は最初の改行
+ * までしか表示しない（memory.md 4.2）。さらに `Line N:` と ` at line N, column M:` が
+ * 重複するぶん、既定のサイドバー幅では説明が切り詰められて読めなくなる。
+ *
+ * **語句自体には手を入れない。** 全文は tooltip に出す（`tree.ts` の `messageTreeItem`）ので、
+ * Kiro 本体の通知やパーサのドキュメントと突き合わせる用途はそちらが担う。
  *
  * **翻訳しない。** `message` は `yaml` パッケージが返す英語固定の文字列で訳す手段がなく、
  * 枠だけ訳すと 1 行の中で言語が混ざる（Q31）。
  */
 export function formatParseError(error: { line: number; message: string }): string {
-  return `Line ${error.line + 1}: ${error.message}`;
+  const [firstLine = ''] = error.message.split('\n');
+  return `Line ${error.line + 1}: ${firstLine.replace(POSITION_SUFFIX, '')}`;
 }

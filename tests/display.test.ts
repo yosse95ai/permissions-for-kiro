@@ -328,4 +328,49 @@ describe('formatParseError', () => {
       'Line 4: Sequence item without - indicator',
     );
   });
+
+  // `yaml` パッケージが実際に返す形。説明文 + スニペット + キャレットの複数行で、
+  // 末尾に `Line N:` と重複する位置情報が付く（Q37 = D）。
+  const YAML_MESSAGE = [
+    'Sequence item without - indicator at line 3, column 1:',
+    '',
+    '  - capability: shell',
+    '   effect: allow',
+    '^',
+    '',
+  ].join('\n');
+
+  it('複数行のメッセージは 1 行目だけを使う', () => {
+    expect(formatParseError({ line: 2, message: YAML_MESSAGE })).toBe(
+      'Line 3: Sequence item without - indicator',
+    );
+  });
+
+  it('末尾の位置情報を落とす', () => {
+    expect(
+      formatParseError({
+        line: 2,
+        message: 'Nested mappings are not allowed at line 3, column 12:',
+      }),
+    ).toBe('Line 3: Nested mappings are not allowed');
+  });
+
+  it('コロンが無い形の位置情報も落とす', () => {
+    expect(formatParseError({ line: 0, message: 'Bad indentation at line 1, column 3' })).toBe(
+      'Line 1: Bad indentation',
+    );
+  });
+
+  it('行の途中にある line / column の記述は落とさない', () => {
+    expect(
+      formatParseError({
+        line: 0,
+        message: 'Tabs are not allowed at line 1, column 3 as indentation',
+      }),
+    ).toBe('Line 1: Tabs are not allowed at line 1, column 3 as indentation');
+  });
+
+  it('メッセージが空でも壊れない', () => {
+    expect(formatParseError({ line: 0, message: '' })).toBe('Line 1: ');
+  });
 });

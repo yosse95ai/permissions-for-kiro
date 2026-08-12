@@ -51,6 +51,13 @@ export type TreeNode =
       /** `TreeItem.id` を安定させるための識別子 */
       slug: string;
       label: string;
+      /**
+       * tooltip に出す全文。`label` を短縮している場合に設定する（Q37 = D）。
+       *
+       * パースエラーの `label` は 1 行目だけに削っているため、スニペットとキャレットを
+       * 含む原文はここで保持する。省略時は `label` をそのまま tooltip にする。
+       */
+      detail?: string;
       icon?: Appearance;
       /** 該当行があればクリックでジャンプする */
       line?: number;
@@ -164,6 +171,8 @@ function scopeChildren(scope: ScopeData): TreeNode[] {
       scope,
       slug: `error:${index}`,
       label: formatParseError(error),
+      // ラベルは 1 行目だけに削っているので、原文は tooltip に回す（Q37 = D）。
+      detail: error.message,
       icon: ERROR_ICON,
       line: error.line,
     }));
@@ -394,7 +403,7 @@ function messageTreeItem(node: Extract<TreeNode, { kind: 'message' }>): vscode.T
     item.iconPath = themeIcon(node.icon);
   }
 
-  item.tooltip = node.label;
+  item.tooltip = node.detail ?? node.label;
 
   if (node.line !== undefined) {
     item.command = revealCommand(node.scope.file.filePath, node.line);

@@ -267,6 +267,36 @@ describe('子ノードの構成', () => {
     ]);
   });
 
+  it('パースエラーのラベルは 1 行目だけにし、tooltip に全文を出す', async () => {
+    // `yaml` パッケージが実際に返す複数行のメッセージ（Q37 = D）。
+    const message = [
+      'Sequence item without - indicator at line 3, column 1:',
+      '',
+      '  - capability: shell',
+      '   effect: allow',
+      '^',
+      '',
+    ].join('\n');
+    const scope = userScope({
+      errors: [{ message, line: 2, column: 0, code: 'MISSING_CHAR' }],
+    });
+
+    const children = await childrenOf(scope);
+    const item = provider.getTreeItem(children[0]!);
+
+    expect(item.label).toBe('Line 3: Sequence item without - indicator');
+    expect(tooltipOf(item)).toBe(message);
+  });
+
+  it('label を短縮していないメッセージは tooltip も同じ文字列', async () => {
+    const scope = userScope({ rulesKey: 'missing' });
+
+    const children = await childrenOf(scope);
+    const item = provider.getTreeItem(children[0]!);
+
+    expect(tooltipOf(item)).toBe('Policy must contain a "rules" array');
+  });
+
   it('パースエラーがあるときはルールを出さない', async () => {
     const scope = userScope({
       rules: [rule()],
