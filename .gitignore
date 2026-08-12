@@ -1,0 +1,25 @@
+# 依存関係
+node_modules/
+
+# ビルド成果物
+dist/
+out/
+*.vsix
+
+# テスト
+coverage/
+
+# ログ
+*.log
+npm-debug.log*
+bun-debug.log*
+
+# エディタ / OS
+.DS_Store
+Thumbs.db
+*.swp
+
+# 環境変数
+.env
+.env.*
+!.env.example
