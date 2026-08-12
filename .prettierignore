@@ -1,0 +1,11 @@
+node_modules/
+dist/
+out/
+coverage/
+*.vsix
+bun.lock
+
+# 日本語を含む Markdown は prettier が表を全角幅で揃えられないため対象外にする
+plan.md
+memory.md
+.kiro/

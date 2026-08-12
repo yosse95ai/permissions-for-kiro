@@ -1,0 +1,20 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.oxc": "explicit"
+  },
+  "files.eol": "\n",
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "json.schemas": [
+    {
+      "fileMatch": [".oxlintrc.json"],
+      "url": "./node_modules/oxlint/configuration_schema.json"
+    }
+  ],
+  "search.exclude": {
+    "**/dist": true,
+    "**/coverage": true,
+    "**/bun.lock": true
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "name": "permissions-for-kiro",
+  "displayName": "Permissions for Kiro",
+  "description": "Visualize the permission rules that apply to your current workspace and user profile, and jump straight to the line that defines them.",
+  "version": "0.1.0",
+  "publisher": "yosse95ai",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yosse95ai/permissions-for-kiro.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yosse95ai/permissions-for-kiro/issues"
+  },
+  "homepage": "https://github.com/yosse95ai/permissions-for-kiro#readme",
+  "engines": {
+    "vscode": "^1.94.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "permissions",
+    "policy",
+    "agent",
+    "security",
+    "tree view"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "views": {
+      "kiro": [
+        {
+          "id": "permissionsForKiro.view",
+          "name": "Permissions"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "permissionsForKiro.refresh",
+        "category": "Permissions for Kiro",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "permissionsForKiro.openScopeFile",
+        "category": "Permissions for Kiro",
+        "title": "Open Permissions File",
+        "icon": "$(pencil)"
+      },
+      {
+        "command": "permissionsForKiro.revealLocation",
+        "category": "Permissions for Kiro",
+        "title": "Go to Definition"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "permissionsForKiro.refresh",
+          "when": "view == permissionsForKiro.view",
+          "group": "navigation@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "permissionsForKiro.openScopeFile",
+          "when": "view == permissionsForKiro.view && viewItem == permissionsForKiro.scope",
+          "group": "inline@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "permissionsForKiro.openScopeFile",
+          "when": "false"
+        },
+        {
+          "command": "permissionsForKiro.revealLocation",
+          "when": "false"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "bun build ./src/extension.ts --outdir ./dist --target=node --format=cjs --external vscode --sourcemap=linked",
+    "build:prod": "bun run build --minify",
+    "watch": "bun run build --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest --run --coverage",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "package": "bun run typecheck && bun run lint && bun run test && bun run build:prod && bunx vsce package --no-dependencies"
+  },
+  "trustedDependencies": [
+    "@vscode/vsce-sign"
+  ],
+  "dependencies": {
+    "yaml": "2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.2.0",
+    "@types/vscode": "1.94.0",
+    "@vitest/coverage-istanbul": "4.1.10",
+    "@vscode/vsce": "3.9.2",
+    "eslint-plugin-simple-import-sort": "14.0.0",
+    "oxlint": "1.78.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "prettier": "3.9.6",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}
