@@ -1,15 +1,28 @@
-import type * as vscode from 'vscode';
+import * as vscode from 'vscode';
 
-/**
- * 拡張のエントリポイント。
- *
- * フェーズ 4 で `TreeDataProvider` の登録、フェーズ 5 でコマンドの登録、
- * フェーズ 6 で `FileSystemWatcher` の設定を追加する。
- */
-export function activate(_context: vscode.ExtensionContext): void {
-  // 現時点では何もしない（フェーズ 2 のビルド検証用のスケルトン）。
+import { registerCommands } from './commands';
+import { PermissionsTreeDataProvider, VIEW_ID } from './tree';
+import { watchPermissions } from './watch';
+
+/** 拡張のエントリポイント。 */
+export function activate(context: vscode.ExtensionContext): void {
+  const provider = new PermissionsTreeDataProvider();
+
+  const view = vscode.window.createTreeView(VIEW_ID, {
+    treeDataProvider: provider,
+    showCollapseAll: true,
+  });
+
+  context.subscriptions.push(
+    view,
+    provider,
+    ...registerCommands(provider),
+    ...watchPermissions(() => {
+      provider.refresh();
+    }),
+  );
 }
 
 export function deactivate(): void {
-  // 解放すべきリソースは `context.subscriptions` に登録するため、ここでは何もしない。
+  // 解放すべきリソースは `context.subscriptions` に登録しているため、ここでは何もしない。
 }

@@ -1,14 +1,24 @@
 /**
  * `vscode` モジュールの最小モック。
  *
- * 拡張ホストが提供する `vscode` はテスト環境に存在しないため、`vitest.config.ts` の
+ * 拡張ホストが提供する `vscode` はテスト環境に存在しないため、`vitest.config.mts` の
  * `resolve.alias` でこのファイルに差し替える。必要になった API をその都度追加する。
+ *
+ * なお `tsc` は alias を知らないため、テストコード側の型は本物の `@types/vscode` で
+ * 検査される。モックが公式型に適合していない箇所は型エラーとして現れる（memory.md 4.2 の ThemeColor の項）。
  */
 
 export enum TreeItemCollapsibleState {
   None = 0,
   Collapsed = 1,
   Expanded = 2,
+}
+
+export enum TextEditorRevealType {
+  Default = 0,
+  InCenter = 1,
+  InCenterIfOutsideViewport = 2,
+  AtTop = 3,
 }
 
 export class ThemeColor {
@@ -21,3 +31,171 @@ export class ThemeIcon {
     public readonly color?: ThemeColor,
   ) {}
 }
+
+export class MarkdownString {
+  constructor(public value: string = '') {}
+}
+
+export interface Command {
+  title: string;
+  command: string;
+  arguments?: unknown[];
+}
+
+export interface AccessibilityInformation {
+  label: string;
+  role?: string;
+}
+
+export class TreeItem {
+  id?: string;
+  description?: string | boolean;
+  tooltip?: string | MarkdownString;
+  iconPath?: ThemeIcon;
+  command?: Command;
+  contextValue?: string;
+  resourceUri?: Uri;
+  accessibilityInformation?: AccessibilityInformation;
+
+  constructor(
+    public label: string,
+    public collapsibleState: TreeItemCollapsibleState = TreeItemCollapsibleState.None,
+  ) {}
+}
+
+export class Uri {
+  private constructor(
+    public readonly scheme: string,
+    public readonly fsPath: string,
+  ) {}
+
+  static file(fsPath: string): Uri {
+    return new Uri('file', fsPath);
+  }
+
+  toString(): string {
+    return `${this.scheme}://${this.fsPath}`;
+  }
+}
+
+export class Position {
+  constructor(
+    public readonly line: number,
+    public readonly character: number,
+  ) {}
+}
+
+export class Range {
+  constructor(
+    public readonly start: Position,
+    public readonly end: Position,
+  ) {}
+}
+
+export class Selection extends Range {}
+
+export class EventEmitter<T> {
+  private readonly listeners: Array<(value: T) => void> = [];
+
+  readonly event = (listener: (value: T) => void): { dispose: () => void } => {
+    this.listeners.push(listener);
+    return {
+      dispose: () => {
+        const index = this.listeners.indexOf(listener);
+        if (index >= 0) {
+          this.listeners.splice(index, 1);
+        }
+      },
+    };
+  };
+
+  fire(value: T): void {
+    // 通知中にリスナーが dispose される場合に備えてコピーしてから回す。
+    for (const listener of this.listeners.slice()) {
+      listener(value);
+    }
+  }
+
+  dispose(): void {
+    this.listeners.length = 0;
+  }
+}
+
+export class RelativePattern {
+  constructor(
+    public readonly baseUri: Uri,
+    public readonly pattern: string,
+  ) {}
+}
+
+/**
+ * `FileSystemWatcher` のモック。
+ *
+ * テストからイベントを発火できるように、登録されたリスナーを保持する。
+ */
+export class FileSystemWatcherMock {
+  // 実際は変更された Uri が渡るが、テストでは値を使わないため `unknown` にしている。
+  readonly onDidCreateEmitter = new EventEmitter<unknown>();
+  readonly onDidChangeEmitter = new EventEmitter<unknown>();
+  readonly onDidDeleteEmitter = new EventEmitter<unknown>();
+  disposed = false;
+
+  constructor(public readonly watched: RelativePattern) {}
+
+  readonly onDidCreate = this.onDidCreateEmitter.event;
+  readonly onDidChange = this.onDidChangeEmitter.event;
+  readonly onDidDelete = this.onDidDeleteEmitter.event;
+
+  dispose(): void {
+    this.disposed = true;
+  }
+}
+
+/** `createFileSystemWatcher` で作られた watcher。テストの検証用。 */
+export const createdWatchers: FileSystemWatcherMock[] = [];
+
+const workspaceFoldersEmitter = new EventEmitter<void>();
+const saveEmitter = new EventEmitter<{ uri: Uri }>();
+
+/** テストからワークスペースフォルダの変更を発火する。 */
+export function fireWorkspaceFoldersChange(): void {
+  workspaceFoldersEmitter.fire();
+}
+
+/** テストからドキュメントの保存を発火する。 */
+export function fireDidSaveTextDocument(fsPath: string): void {
+  saveEmitter.fire({ uri: Uri.file(fsPath) });
+}
+
+/** テスト間で状態を持ち越さないためのリセット。 */
+export function resetMocks(): void {
+  createdWatchers.length = 0;
+  workspace.workspaceFolders = undefined;
+}
+
+/** テストから差し替えられるようにミュータブルにしている。 */
+export const workspace = {
+  workspaceFolders: undefined as Array<{ uri: Uri; name: string; index: number }> | undefined,
+  openTextDocument: async (uri: Uri) => ({ uri, lineCount: 1 }),
+  createFileSystemWatcher: (pattern: RelativePattern): FileSystemWatcherMock => {
+    const watcher = new FileSystemWatcherMock(pattern);
+    createdWatchers.push(watcher);
+    return watcher;
+  },
+  onDidChangeWorkspaceFolders: workspaceFoldersEmitter.event,
+  onDidSaveTextDocument: saveEmitter.event,
+};
+
+export const window = {
+  showErrorMessage: async (message: string) => message,
+  showTextDocument: async () => {
+    throw new Error('showTextDocument is not implemented in the mock');
+  },
+  createTreeView: () => {
+    throw new Error('createTreeView is not implemented in the mock');
+  },
+};
+
+export const commands = {
+  registerCommand: (command: string) => ({ dispose: () => undefined, command }),
+};
