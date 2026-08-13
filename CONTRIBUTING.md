@@ -124,6 +124,29 @@ bun run lint     # oxlint, type-aware
 - To suppress a lint rule, the directive is `/* oxlint-disable <plugin>/<rule> */`. The ESLint-style `-- reason` suffix silently disables the whole directive, so put the reason on a neighbouring comment line.
 - Line endings are LF, enforced by `.gitattributes`. Do not fight your Git configuration; the attribute wins.
 
+## Changelog and versioning
+
+[CHANGELOG.md](./CHANGELOG.md) follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+Add your change to the `Unreleased` section at the top, creating that section if it is not there, under one of the six headings (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`). Write it for someone deciding whether to update, not for someone reading the diff.
+
+- **Leave out anything users cannot see.** Refactors, test changes, and dependency bumps do not belong in the changelog. If a dependency bump does change behaviour, describe the effect under the heading that fits.
+- **`Fixed` means the behaviour was wrong. `Changed` means it worked as intended and now works differently.** When in doubt, ask whether the old behaviour was a bug.
+- **Mark a breaking change with a `**Breaking:**` prefix** on the entry itself, keeping it under `Changed` or `Removed`.
+
+The extension has no public API, so version numbers describe what users see:
+
+| Change                                          | Bump                                                                                         |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| A new capability of the view                    | minor                                                                                        |
+| A change to how something is displayed          | minor — the labels and colours are the interface here                                        |
+| A fix                                           | patch                                                                                        |
+| Following a change in Kiro itself               | patch, since it corrects a view that had drifted; minor if the display changes substantially |
+| Raising the minimum supported Kiro version      | minor                                                                                        |
+| A dependency update with no user-visible effect | no release                                                                                   |
+
+While the version is below `1.0.0`, a breaking change ships as a minor bump with the `**Breaking:**` marker rather than a major one.
+
 ## Commits and pull requests
 
 - Write commit messages in English with a short prefix: `feat:`, `fix:`, `docs:`, `chore:`, `test:`.

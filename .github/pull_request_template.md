@@ -13,6 +13,7 @@
 - [ ] Verified in Kiro with an extension development host (<kbd>F5</kbd>)
 - [ ] Platform verified: <!-- macOS / Windows / both -->
 - [ ] User-facing strings are in `l10n/bundle.l10n.ja.json` and, if referenced from `package.json`, in both `package.nls*.json` files
+- [ ] Added to the `Unreleased` section of `CHANGELOG.md`, or the change is not user-visible
 - [ ] Screenshot attached, if the view looks different
 
 ## Notes for the reviewer
