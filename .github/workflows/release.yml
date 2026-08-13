@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: 1.3.14
+
+      # vsce spawns npm internally, so Node has to be on PATH as well.
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 22
+
+      - run: bun install --frozen-lockfile
+
+      - name: Check the tag against package.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          manifest="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$manifest" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match version $manifest in package.json" >&2
+            exit 1
+          fi
+          echo "VSIX=permissions-for-kiro-$manifest.vsix" >> "$GITHUB_ENV"
+
+      # Runs typecheck, lint, tests, a minified build, and finally vsce package.
+      # Going through this script is what keeps an unminified bundle out of the VSIX.
+      - run: bun run package
+
+      - name: Publish to Open VSX
+        run: bunx ovsx@1.1.1 publish "$VSIX" --skip-duplicate
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+
+      - name: Create the GitHub release
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$VSIX" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "See [CHANGELOG.md](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME/CHANGELOG.md)."
+        env:
+          GH_TOKEN: ${{ github.token }}
