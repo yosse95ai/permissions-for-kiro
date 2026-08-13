@@ -4,6 +4,11 @@ import * as path from 'node:path';
 /**
  * Kiro 本体の `workspace-hash` モジュールと同じパス正規化を行う。
  *
+ * **ハッシュ計算だけでなく、パスの比較にもこの関数を通す**（Q40 / Q45）。Windows では
+ * `Uri.fsPath` がドライブレターを小文字に落とす一方 `os.homedir()` は大文字を返すため、
+ * 素の文字列比較は必ず外れる（memory.md 4.2 の `Uri.fsPath` の項）。区切り文字の差も
+ * ここで吸収される。
+ *
  * 本体の実装（`@kiro/agent/dist/workspace-hash-*.js`）を移植したもの。
  *
  * ```js

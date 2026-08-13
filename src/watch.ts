@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import { PERMISSIONS_FILES, userScopeDir, workspaceRootsDir } from './permissionsFile';
+import { normalizeRoot } from './workspaceHash';
 
 /** ファイル保存時は create / change / delete が短時間に連続するため、まとめて 1 回にする。 */
 const DEBOUNCE_MS = 300;
@@ -52,20 +53,37 @@ export function createDebouncer(callback: () => void, delayMs: number = DEBOUNCE
  *
  * - `~/.kiro/settings/permissions.{yaml,json}`
  * - `~/.kiro/workspace-roots/<hash>/permissions.{yaml,json}`
+ *
+ * **パスの比較は `normalizeRoot()` を通す**（Q40 / Q45）。`filePath` には
+ * `document.uri.fsPath` が渡るが、Windows ではドライブレターが小文字に落ちる一方
+ * `os.homedir()` は大文字を返すため、素の文字列比較は必ず外れる（memory.md 4.2 の
+ * `Uri.fsPath` の項）。
+ *
+ * @param platform 判定に使うプラットフォーム。テストで Windows の挙動を検証するために差し替える
  */
-export function isPermissionsFile(filePath: string, home: string): boolean {
-  const name = path.basename(filePath);
+export function isPermissionsFile(
+  filePath: string,
+  home: string,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  // 区切り文字の解釈も `platform` に合わせる（`normalizeRoot()` と同じ設計）。
+  const pathApi = platform === 'win32' ? path.win32 : path.posix;
+
+  const name = pathApi.basename(filePath);
   if (!PERMISSIONS_FILES.some((candidate) => candidate === name)) {
     return false;
   }
 
-  const dir = path.dirname(filePath);
-  if (dir === userScopeDir(home)) {
+  const dir = pathApi.dirname(filePath);
+  if (normalizeRoot(dir, platform) === normalizeRoot(userScopeDir(home, platform), platform)) {
     return true;
   }
 
   // ハッシュディレクトリの直下のみを対象にする（それより深い階層は無関係）。
-  return path.dirname(dir) === workspaceRootsDir(home);
+  return (
+    normalizeRoot(pathApi.dirname(dir), platform) ===
+    normalizeRoot(workspaceRootsDir(home, platform), platform)
+  );
 }
 
 /**

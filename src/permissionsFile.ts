@@ -5,7 +5,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { rootCandidates, workspaceRootHash } from './workspaceHash';
+import { normalizeRoot, rootCandidates, workspaceRootHash } from './workspaceHash';
 
 /** Kiro が探索するファイル名。この順に探し、最初に見つかったものを読む。 */
 export const PERMISSIONS_FILES = ['permissions.yaml', 'permissions.json'] as const;
@@ -75,14 +75,30 @@ export async function pickPermissionsFile(dir: string): Promise<ScopeFile> {
   return { dir, filePath: fallback, exists: false, format: 'yaml' };
 }
 
+/**
+ * `platform` に対応する `path` の実装を返す。
+ *
+ * テストで Windows / posix 両方の挙動を片方の OS から検証できるようにするために使う
+ * （`workspaceHash.ts` の `normalizeRoot` と同じ設計）。
+ */
+function pathFor(platform: NodeJS.Platform): typeof path.win32 {
+  return platform === 'win32' ? path.win32 : path.posix;
+}
+
 /** `~/.kiro/settings` */
-export function userScopeDir(home: string = os.homedir()): string {
-  return path.join(home, '.kiro', 'settings');
+export function userScopeDir(
+  home: string = os.homedir(),
+  platform: NodeJS.Platform = process.platform,
+): string {
+  return pathFor(platform).join(home, '.kiro', 'settings');
 }
 
 /** `~/.kiro/workspace-roots` */
-export function workspaceRootsDir(home: string = os.homedir()): string {
-  return path.join(home, '.kiro', 'workspace-roots');
+export function workspaceRootsDir(
+  home: string = os.homedir(),
+  platform: NodeJS.Platform = process.platform,
+): string {
+  return pathFor(platform).join(home, '.kiro', 'workspace-roots');
 }
 
 /** User スコープのファイルを解決する。 */
@@ -92,12 +108,19 @@ export async function resolveUserScope(home: string = os.homedir()): Promise<Sco
 
 /**
  * `.trust-migration.json` を全走査して、記録されている `root` がワークスペースパスと
- * （Unicode 正規化の違いを無視して）一致するディレクトリを探す。
+ * （Kiro と同じパス正規化と Unicode 正規化の違いを無視して）一致するディレクトリを探す。
  *
  * ハッシュ規則やパス正規化が想定と変わった場合の最後の砦。通常はハッシュで解決できるため
  * 実行されない。
+ *
+ * **比較は `normalizeRoot()` を通す**（Q45）。Windows ではドライブレターの大文字小文字と
+ * 区切り文字が経路によって変わるため、素の文字列比較では外れる。
  */
-async function reverseScan(root: string, home: string): Promise<string | undefined> {
+async function reverseScan(
+  root: string,
+  home: string,
+  platform: NodeJS.Platform = process.platform,
+): Promise<string | undefined> {
   const base = workspaceRootsDir(home);
 
   let entries: string[];
@@ -107,7 +130,7 @@ async function reverseScan(root: string, home: string): Promise<string | undefin
     return undefined;
   }
 
-  const wanted = root.normalize('NFC');
+  const wanted = normalizeRoot(root, platform).normalize('NFC');
   for (const entry of entries) {
     const manifest = path.join(base, entry, TRUST_MIGRATION_FILE);
     try {
@@ -115,7 +138,10 @@ async function reverseScan(root: string, home: string): Promise<string | undefin
       const parsed: unknown = JSON.parse(raw);
       if (typeof parsed === 'object' && parsed !== null && 'root' in parsed) {
         const recorded: unknown = parsed.root;
-        if (typeof recorded === 'string' && recorded.normalize('NFC') === wanted) {
+        if (
+          typeof recorded === 'string' &&
+          normalizeRoot(recorded, platform).normalize('NFC') === wanted
+        ) {
           return path.join(base, entry);
         }
       }
@@ -155,7 +181,7 @@ export async function resolveWorkspaceScope(
     }
   }
 
-  const scanned = await reverseScan(root, home);
+  const scanned = await reverseScan(root, home, platform);
   if (scanned !== undefined) {
     const file = await pickPermissionsFile(scanned);
     return { ...file, hash: path.basename(scanned), resolvedVia: 'reverse-scan' };

@@ -1,3 +1,5 @@
+import * as path from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createDebouncer, isPermissionsFile, watchPermissions } from '../src/watch';
@@ -61,10 +63,15 @@ describe('watchPermissions', () => {
   it('User スコープと workspace-roots の 2 つを監視する', () => {
     watchPermissions(vi.fn<() => void>(), '/home/test');
 
+    // 監視対象のパスは実行プラットフォームの区切り文字で組まれる（Windows では `\`）。
     expect(createdWatchers).toHaveLength(2);
-    expect(createdWatchers[0]!.watched.baseUri.fsPath).toBe('/home/test/.kiro/settings');
+    expect(createdWatchers[0]!.watched.baseUri.fsPath).toBe(
+      path.join('/home/test', '.kiro', 'settings'),
+    );
     expect(createdWatchers[0]!.watched.pattern).toBe('{permissions.yaml,permissions.json}');
-    expect(createdWatchers[1]!.watched.baseUri.fsPath).toBe('/home/test/.kiro/workspace-roots');
+    expect(createdWatchers[1]!.watched.baseUri.fsPath).toBe(
+      path.join('/home/test', '.kiro', 'workspace-roots'),
+    );
     // ハッシュディレクトリは後から作られることがあるため `**` で受ける。
     expect(createdWatchers[1]!.watched.pattern).toBe('**/{permissions.yaml,permissions.json}');
   });
@@ -171,40 +178,97 @@ describe('watchPermissions', () => {
   });
 });
 
-describe('isPermissionsFile', () => {
+// `platform` を明示して呼ぶ。実行 OS に依存せず両方の挙動を検証するため（Q41 = B）。
+describe('isPermissionsFile（posix）', () => {
   const home = '/home/test';
+  const isTarget = (filePath: string): boolean => isPermissionsFile(filePath, home, 'linux');
 
   it('User スコープのファイルを認識する', () => {
-    expect(isPermissionsFile('/home/test/.kiro/settings/permissions.yaml', home)).toBe(true);
-    expect(isPermissionsFile('/home/test/.kiro/settings/permissions.json', home)).toBe(true);
+    expect(isTarget('/home/test/.kiro/settings/permissions.yaml')).toBe(true);
+    expect(isTarget('/home/test/.kiro/settings/permissions.json')).toBe(true);
   });
 
   it('ワークスペースルートのファイルを認識する', () => {
-    expect(
-      isPermissionsFile('/home/test/.kiro/workspace-roots/a22ec86d9a804c48/permissions.yaml', home),
-    ).toBe(true);
+    expect(isTarget('/home/test/.kiro/workspace-roots/a22ec86d9a804c48/permissions.yaml')).toBe(
+      true,
+    );
   });
 
   it('ファイル名が違うものは対象外', () => {
-    expect(isPermissionsFile('/home/test/.kiro/settings/mcp.json', home)).toBe(false);
-    expect(isPermissionsFile('/home/test/.kiro/settings/permissions.yml', home)).toBe(false);
-    expect(isPermissionsFile('/home/test/.kiro/settings/permissions.md', home)).toBe(false);
+    expect(isTarget('/home/test/.kiro/settings/mcp.json')).toBe(false);
+    expect(isTarget('/home/test/.kiro/settings/permissions.yml')).toBe(false);
+    expect(isTarget('/home/test/.kiro/settings/permissions.md')).toBe(false);
   });
 
   it('置き場所が違うものは対象外', () => {
-    expect(isPermissionsFile('/home/test/.kiro/permissions.yaml', home)).toBe(false);
-    expect(isPermissionsFile('/Users/test/project/permissions.yaml', home)).toBe(false);
+    expect(isTarget('/home/test/.kiro/permissions.yaml')).toBe(false);
+    expect(isTarget('/Users/test/project/permissions.yaml')).toBe(false);
     // ワークスペース内の .kiro は Kiro に読まれないため対象外（memory.md 4.1）。
-    expect(isPermissionsFile('/Users/test/project/.kiro/settings/permissions.yaml', home)).toBe(
-      false,
-    );
+    expect(isTarget('/Users/test/project/.kiro/settings/permissions.yaml')).toBe(false);
   });
 
   it('ハッシュディレクトリより深い階層は対象外', () => {
     expect(
-      isPermissionsFile(
-        '/home/test/.kiro/workspace-roots/a22ec86d9a804c48/nested/permissions.yaml',
-        home,
+      isTarget('/home/test/.kiro/workspace-roots/a22ec86d9a804c48/nested/permissions.yaml'),
+    ).toBe(false);
+  });
+
+  it('大文字小文字の違いは posix では別のパスとして扱う', () => {
+    // macOS のファイルシステムは大文字小文字を区別しないが、Kiro 本体の正規化は
+    // win32 以外では `toLowerCase()` しない（memory.md 3.2）。本体に合わせる。
+    expect(isTarget('/Home/Test/.kiro/settings/permissions.yaml')).toBe(false);
+  });
+});
+
+describe('isPermissionsFile（win32）', () => {
+  // `os.homedir()` はドライブレターを大文字で返す。
+  const home = 'D:\\Users\\test';
+  const isTarget = (filePath: string): boolean => isPermissionsFile(filePath, home, 'win32');
+
+  it('User スコープのファイルを認識する', () => {
+    expect(isTarget('D:\\Users\\test\\.kiro\\settings\\permissions.yaml')).toBe(true);
+    expect(isTarget('D:\\Users\\test\\.kiro\\settings\\permissions.json')).toBe(true);
+  });
+
+  it('ドライブレターが小文字でも認識する', () => {
+    // `Uri.fsPath` はドライブレターを小文字に落とす（memory.md 4.2 の `Uri.fsPath` の項）。
+    // 素の文字列比較だとここが `false` になり、保存時の即時反映が効かなくなる。
+    expect(isTarget('d:\\Users\\test\\.kiro\\settings\\permissions.yaml')).toBe(true);
+    expect(
+      isTarget('d:\\Users\\test\\.kiro\\workspace-roots\\20b1c19bb023d9a9\\permissions.yaml'),
+    ).toBe(true);
+  });
+
+  it('パス全体の大文字小文字の違いを無視する', () => {
+    expect(isTarget('d:\\users\\test\\.kiro\\settings\\permissions.yaml')).toBe(true);
+  });
+
+  it('区切り文字が `/` でも認識する', () => {
+    expect(isTarget('d:/Users/test/.kiro/settings/permissions.yaml')).toBe(true);
+  });
+
+  it('ワークスペースルートのファイルを認識する', () => {
+    expect(
+      isTarget('D:\\Users\\test\\.kiro\\workspace-roots\\20b1c19bb023d9a9\\permissions.yaml'),
+    ).toBe(true);
+  });
+
+  it('ファイル名が違うものは対象外', () => {
+    expect(isTarget('D:\\Users\\test\\.kiro\\settings\\mcp.json')).toBe(false);
+    expect(isTarget('D:\\Users\\test\\.kiro\\settings\\permissions.yml')).toBe(false);
+  });
+
+  it('置き場所が違うものは対象外', () => {
+    expect(isTarget('D:\\Users\\test\\.kiro\\permissions.yaml')).toBe(false);
+    expect(isTarget('D:\\Users\\other\\.kiro\\settings\\permissions.yaml')).toBe(false);
+    // ドライブが違うものは別のパス。
+    expect(isTarget('C:\\Users\\test\\.kiro\\settings\\permissions.yaml')).toBe(false);
+  });
+
+  it('ハッシュディレクトリより深い階層は対象外', () => {
+    expect(
+      isTarget(
+        'D:\\Users\\test\\.kiro\\workspace-roots\\20b1c19bb023d9a9\\nested\\permissions.yaml',
       ),
     ).toBe(false);
   });
