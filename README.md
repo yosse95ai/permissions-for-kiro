@@ -1,64 +1,94 @@
 # Permissions for Kiro
 
-サイドバーに `PERMISSIONS` ビューを追加し、現在のワークスペースとユーザープロファイルに効いている権限ルールをツリー表示します。ルールをクリックすると、それを定義しているファイルの該当行にジャンプします。
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
+**English** | [日本語](./README.ja.md)
+
+Adds a `PERMISSIONS` view to the sidebar that shows the permission rules currently in effect for your workspace and user profile. Click a rule to jump straight to the line that defines it.
+
+![Expanding the tree and jumping to the line that defines a pattern](docs/images/demo.gif)
 
 > [!IMPORTANT]
-> これは個人が開発している非公式の拡張機能であり、Amazon Web Services, Inc. の公式製品ではありません。AWS による保証・サポートはありません。
-> Kiro は Amazon.com, Inc. またはその関連会社の商標です。
+> **Unofficial extension.** This is developed by an individual and is not an official product of Amazon Web Services, Inc. It comes with no AWS warranty or support.
+> Kiro is a trademark of Amazon.com, Inc. or its affiliates.
 
-## 解決する課題
+## The problem
 
-Kiro の権限設定ファイルは、ワークスペース内ではなくホームディレクトリ配下のハッシュ付きパスに保存されます。
+Kiro declares permissions per capability, with match patterns and explicit effects. For the model itself, see [Permissions](https://kiro.dev/docs/permissions/) in the Kiro documentation. What this extension addresses is where those rules live, and whether they are actually being applied.
+
+Kiro does not keep permission settings inside your workspace. It stores them under your home directory, in a directory named after a hash of the workspace path.
 
 ```
-~/.kiro/settings/permissions.yaml                  # User スコープ
-~/.kiro/workspace-roots/<16 桁のハッシュ>/permissions.yaml   # Workspace スコープ
+~/.kiro/settings/permissions.yaml                     # User scope
+~/.kiro/workspace-roots/<16-char hash>/permissions.yaml   # Workspace scope
 ```
 
-ハッシュはワークスペースの絶対パスから計算されるため、どのディレクトリが自分のワークスペースに対応するのかを目で追うことができません。この拡張はその対応を解決し、実際に効いているルールを一覧します。
+The hash is derived from the absolute path of the workspace root, so there is no practical way to tell by eye which directory belongs to which workspace. This extension resolves that mapping for you.
 
-## 機能
+More importantly, it shows **the rules that are actually in effect** rather than the contents of the file. Kiro silently discards rules it cannot read, and in some cases discards the entire configuration and fails closed. Showing the file as written would be misleading, so the view reflects how Kiro's own loader treats it.
 
-<!-- TODO: フェーズ 10-1 で記述する -->
+## Features
 
-- Workspace スコープ（ワークスペースルートごと）と User スコープのルールをツリー表示
-- capability / effect / match パターンの 3 段構成
-- ルールやパターンをクリックして定義行へジャンプ
-- ペンシルアイコンから設定ファイルを開く（存在しない場合は作成）
-- 設定ファイルの変更を検知して自動で再読み込み
-- YAML のパースエラーを表示
+- Lists rules for every workspace root plus the user profile
+- Three levels: scope, rule (capability and effect), and individual `match` / `exclude` patterns
+- Click any leaf row to open the file at the line that defines it
+- The pencil icon opens the settings file, creating it if it does not exist yet
+- Reloads automatically when a settings file changes, including edits made outside the editor
+- **Marks rules that Kiro skips** because of an unknown capability, so you can see why a rule has no effect
+- **Warns when the whole configuration fails to load** (`fail closed`), in which case no rule applies at all
+- Reports YAML and JSON parse errors with the line that caused them
+- Supports `permissions.json` as well as `permissions.yaml`, and multi-root workspaces
 
-## インストール
+## Installation
 
-<!-- TODO: フェーズ 10-1 / 11 で記述する（Open VSX / VSIX の手順） -->
+> [!NOTE]
+> **Not published yet.** The extension will be available on Open VSX once the first release is out.
 
-## 使い方
+Kiro's extension gallery points at [Open VSX](https://open-vsx.org). Open the Extensions view, search for `Permissions for Kiro`, and install it.
 
-<!-- TODO: フェーズ 10-1 で記述する（スクリーンショットを含む） -->
+## Usage
 
-## 対応環境
+Open the Kiro view container in the activity bar. The `PERMISSIONS` view appears below `MCP SERVERS`.
 
-| 項目 | 対応                                    |
-| ---- | --------------------------------------- |
-| OS   | macOS / Windows                         |
-| Kiro | <!-- TODO: 検証したバージョンを記載 --> |
+- **Rows with children** expand and collapse. Rows without children jump to their definition.
+- **A rule shown as `all`** has no `match` patterns, so it applies to everything the capability covers. Clicking it jumps to the rule itself.
+- **`deny` and `ask` are labelled explicitly.** `allow` is left unmarked to keep the list readable.
+- **Hover a scope row** to see both the workspace folder and the resolved settings file path.
 
-## 開発
+The view is read only. Add, change, and remove rules by editing the file, which you can open from the pencil icon or by clicking any row. For the rule syntax, see [Permissions](https://kiro.dev/docs/permissions/) in the Kiro documentation.
+
+## Requirements
+
+| Item   | Support                                                                                      |
+| ------ | -------------------------------------------------------------------------------------------- |
+| Editor | **Kiro only.** The view relies on Kiro's permission model and does not work in plain VS Code |
+| Kiro   | Verified on 1.0.288 and later                                                                |
+| OS     | macOS and Windows, both verified on real machines                                            |
+
+## How it works
+
+The extension reproduces two things from Kiro itself: the way a workspace path is normalized and hashed to locate the settings directory, and the way rules are validated. That is what lets it show the rules actually in effect instead of the raw file.
+
+Because both behaviours mirror Kiro's internals, a future change in Kiro could make the view diverge from reality. If you notice a mismatch, please [open an issue](https://github.com/yosse95ai/permissions-for-kiro/issues).
+
+## Development
 
 ```bash
-bun install       # 依存関係の取得
-bun run build     # dist/extension.js を生成
-bun run watch     # 変更を監視してビルド
-bun run typecheck # 型チェック
-bun run lint      # oxlint（type-aware 有効）
+bun install       # install dependencies
+bun run build     # produce dist/extension.js
+bun run watch     # rebuild on change
+bun run typecheck # type check
+bun run lint      # oxlint, type-aware enabled
 bun run test      # vitest
-bun run package   # VSIX の生成
+bun run package   # build a VSIX
 ```
 
-## ライセンス
+Press <kbd>F5</kbd> to launch an extension development host.
+
+## License
 
 [MIT](./LICENSE)
 
-## 商標について
+## Trademarks
 
-Kiro および AWS は Amazon.com, Inc. またはその関連会社の商標です。この拡張機能は Amazon Web Services, Inc. と提携しておらず、同社による推奨も受けていません。
+Kiro and AWS are trademarks of Amazon.com, Inc. or its affiliates. This extension is not affiliated with, nor endorsed by, Amazon Web Services, Inc.

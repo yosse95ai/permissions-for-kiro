@@ -2,11 +2,13 @@
 .kiro/**
 .vscode/**
 assets/**
+docs/**
 src/**
 tests/**
 node_modules/**
 coverage/**
 dist/**/*.map
+README.ja.md
 .gitignore
 .oxlintrc.json
 .prettierignore
