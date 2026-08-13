@@ -8,6 +8,24 @@ updates:
     commit-message:
       prefix: chore
     open-pull-requests-limit: 5
+    ignore:
+      # Pinned to engines.vscode on purpose. Raising it would let us compile
+      # against APIs that Kiro does not ship, since Kiro's base VS Code version
+      # trails the latest release. Raise both by hand when a newer API is needed,
+      # accepting that it drops support for older Kiro versions.
+      - dependency-name: "@types/vscode"
+    groups:
+      # oxlint-tsgolint tracks a specific TypeScript version. Bumping one
+      # without the other makes type-aware linting stop working silently.
+      typescript:
+        patterns:
+          - typescript
+          - oxlint-tsgolint
+      # The coverage provider has to match the vitest version.
+      vitest:
+        patterns:
+          - vitest
+          - "@vitest/*"
 
   - package-ecosystem: github-actions
     directory: /
