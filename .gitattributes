@@ -1,0 +1,15 @@
+# 改行コードをリポジトリ側で LF に固定する（Q47）。
+#
+# Windows の Git は既定で `core.autocrlf=true` のため、これが無いと clone した作業ツリーが
+# CRLF になり、`endOfLine: "lf"` を指定している prettier の `format:check` が全ファイルで
+# 落ちる。`eol=lf` は `core.autocrlf` より優先されるので、各人の設定に依存しなくなる。
+* text=auto eol=lf
+
+# 改行変換の対象外。VSIX は zip、画像はバイナリ。
+*.vsix binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
