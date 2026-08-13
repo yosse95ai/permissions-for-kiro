@@ -5,7 +5,6 @@
   "version": "0.1.0",
   "publisher": "yosse95ai",
   "license": "MIT",
-  "private": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/yosse95ai/permissions-for-kiro.git"
