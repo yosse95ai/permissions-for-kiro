@@ -9,6 +9,9 @@ node_modules/**
 coverage/**
 dist/**/*.map
 README.ja.md
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md
 .gitignore
 .oxlintrc.json
 .prettierignore

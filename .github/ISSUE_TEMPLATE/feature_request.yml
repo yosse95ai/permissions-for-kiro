@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest something the extension could do
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Two things are deliberately out of scope.** The view is read only, so editing rules from the tree is not planned, and the extension targets Kiro only, so support for plain VS Code is not planned. Anything else is open for discussion.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is awkward today
+      description: Describe the situation you ran into rather than the solution, so alternatives stay on the table.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like to see
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you tried instead
+      description: Optional.

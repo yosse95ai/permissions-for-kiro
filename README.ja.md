@@ -75,6 +75,14 @@ Kiro の拡張ギャラリーは [Open VSX](https://open-vsx.org) を指して�
 
 [English README の Development 節](./README.md#development)を参照してください。
 
+## コントリビュート
+
+Issue も Pull Request も歓迎します。開発環境の準備と、コードを変更する前に知っておきたい制約は [CONTRIBUTING.md](./CONTRIBUTING.md)（英語）にまとめてあります。[Code of Conduct](./CODE_OF_CONDUCT.md)（英語）にも目を通してください。
+
+**特に有用なのは食い違いの報告です。** この拡張は Kiro の内部実装を再現しており、Kiro 側は独自に更新されるため、ビューの表示と Kiro の実際の挙動が食い違うことがあります。見た目が壊れていなくても報告する価値があります。
+
+セキュリティに関わる内容は、公開の Issue ではなく [非公開の報告](./SECURITY.md) を使ってください。
+
 ## ライセンス
 
 [MIT](./LICENSE)

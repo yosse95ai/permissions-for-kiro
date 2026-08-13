@@ -85,6 +85,14 @@ bun run package   # build a VSIX
 
 Press <kbd>F5</kbd> to launch an extension development host.
 
+## Contributing
+
+Issues and pull requests are both welcome. [CONTRIBUTING.md](./CONTRIBUTING.md) covers how to get set up and the handful of constraints worth knowing before changing code. Please also read the [Code of Conduct](./CODE_OF_CONDUCT.md).
+
+**Mismatch reports are particularly useful**: if the view says one thing and Kiro does another, that is worth reporting even when nothing looks broken, because the extension mirrors Kiro's internals and Kiro moves on its own.
+
+For anything security related, use [private reporting](./SECURITY.md) instead of a public issue.
+
 ## License
 
 [MIT](./LICENSE)

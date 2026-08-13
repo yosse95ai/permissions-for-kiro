@@ -1,0 +1,93 @@
+name: Bug report
+description: The extension misbehaves — wrong output, an error, or nothing shows up
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report.
+
+        **Please redact your file paths and settings.** They contain your user name, and the structure alone is enough to reproduce most problems.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did the view show, or what error appeared?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a workspace at ...
+        2. Expand the Workspace scope row
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: extension-version
+    attributes:
+      label: Extension version
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: kiro-version
+    attributes:
+      label: Kiro version
+      description: Kiro menu → About, or `kiro --version`
+      placeholder: 1.0.293
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which scope is affected
+      options:
+        - Workspace
+        - User
+        - Both
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: settings
+    attributes:
+      label: Permission settings involved
+      description: The relevant part of `permissions.yaml` or `permissions.json`, with paths redacted. Leave empty if the settings are not relevant.
+      render: yaml
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before submitting
+      options:
+        - label: I am on the latest released version of the extension
+          required: true
+        - label: I have removed anything I do not want published from the paths and settings above
+          required: true

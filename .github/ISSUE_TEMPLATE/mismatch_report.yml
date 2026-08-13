@@ -1,0 +1,84 @@
+name: Mismatch report
+description: The view disagrees with what Kiro actually does
+labels: [mismatch]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This extension reproduces two behaviours from Kiro itself: how a workspace path is hashed into a settings directory, and how Kiro decides which rules to keep. **A change in Kiro can therefore make the view drift away from reality even though the extension did not change.**
+
+        Report a mismatch here even if nothing looks broken.
+
+        **Please redact your file paths and settings.**
+
+  - type: textarea
+    id: shown
+    attributes:
+      label: What the view shows
+      description: The scope row, the rule rows, and anything in the tooltip.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What Kiro actually does
+      description: For example a tool was blocked that the view shows as allowed, a rule the view lists as skipped is clearly taking effect, or Kiro showed a notification about its permission settings that the view does not reflect.
+    validations:
+      required: true
+
+  - type: textarea
+    id: how-you-know
+    attributes:
+      label: How you observed Kiro's behaviour
+      placeholder: |
+        Kiro asked for confirmation on a command the view lists as allowed, and the status bar said ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: settings
+    attributes:
+      label: The settings file
+      description: The file the view is reading, with paths redacted. Keep the structure intact — indentation and key names are what matter here.
+      render: yaml
+    validations:
+      required: true
+
+  - type: input
+    id: kiro-version
+    attributes:
+      label: Kiro version
+      description: Kiro menu → About, or `kiro --version`
+      placeholder: 1.0.293
+    validations:
+      required: true
+
+  - type: input
+    id: extension-version
+    attributes:
+      label: Extension version
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before submitting
+      options:
+        - label: I am on the latest released version of the extension
+          required: true
+        - label: I have removed anything I do not want published from the paths and settings above
+          required: true

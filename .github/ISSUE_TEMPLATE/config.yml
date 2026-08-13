@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: How Kiro permissions work
+    url: https://kiro.dev/docs/permissions/
+    about: Questions about the rule syntax or the permission model itself are answered by Kiro's own documentation.
+  - name: A problem with Kiro, not with this extension
+    url: https://kiro.dev/
+    about: This extension only displays Kiro's settings. If Kiro itself allows or blocks the wrong thing, report it to Kiro.
