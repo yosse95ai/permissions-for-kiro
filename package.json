@@ -14,6 +14,7 @@
     "url": "https://github.com/yosse95ai/permissions-for-kiro/issues"
   },
   "homepage": "https://github.com/yosse95ai/permissions-for-kiro#readme",
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.94.0"
   },

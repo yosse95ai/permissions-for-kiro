@@ -1,6 +1,7 @@
 .github/**
 .kiro/**
 .vscode/**
+assets/**
 src/**
 tests/**
 node_modules/**
