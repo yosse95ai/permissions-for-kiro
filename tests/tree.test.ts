@@ -455,7 +455,15 @@ describe('スコープ行の tooltip', () => {
 
     const tooltip = tooltipOf(item);
     expect(tooltip).toContain('User scope');
+    expect(tooltip).toContain('File:');
     expect(tooltip).toContain('/home/test/.kiro/settings/permissions.yaml');
+  });
+
+  it('User スコープにはワークスペースのパスを載せない', () => {
+    // User スコープにフォルダの概念はない。
+    expect(tooltipOf(provider.getTreeItem({ kind: 'scope', scope: userScope() }))).not.toContain(
+      'Folder:',
+    );
   });
 
   it('ワークスペースはハッシュを載せる', () => {
@@ -464,6 +472,15 @@ describe('スコープ行の tooltip', () => {
     const tooltip = tooltipOf(item);
     expect(tooltip).toContain('Workspace scope');
     expect(tooltip).toContain('0654434d556baf69');
+  });
+
+  it('ワークスペースはフォルダのパスを載せる（Q48）', () => {
+    // ラベルは `folder.name` なので、マルチルートで同名フォルダを開くと行が区別できない。
+    const item = provider.getTreeItem({ kind: 'scope', scope: missingWorkspaceScope() });
+
+    const tooltip = tooltipOf(item);
+    expect(tooltip).toContain('Folder:');
+    expect(tooltip).toContain('/Users/test/project');
   });
 
   it('ファイルが無いことを明記する', () => {

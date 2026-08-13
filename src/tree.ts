@@ -238,8 +238,15 @@ function scopeTooltip(scope: ScopeData): vscode.MarkdownString {
       ? `**${vscode.l10n.t('User scope')}**`
       : `**${vscode.l10n.t('Workspace scope')}**`,
   );
-  lines.push('');
-  lines.push(`\`${scope.file.filePath}\``);
+
+  // ワークスペースのパスを最初に出す（Q48）。ラベルは `folder.name` なので、マルチルートで
+  // 同名のフォルダを開くと行が区別できなくなる。ハッシュは診断用で、人間には逆引きできない。
+  if (scope.kind === 'workspace') {
+    lines.push('', `${vscode.l10n.t('Folder:')} \`${scope.folder.uri.fsPath}\``);
+  }
+
+  // 空行を挟むのは Markdown の段落として分けるため（挟まないと 1 行に連結される）。
+  lines.push('', `${vscode.l10n.t('File:')} \`${scope.file.filePath}\``);
 
   if (!scope.file.exists) {
     lines.push('', vscode.l10n.t('The file does not exist yet.'));

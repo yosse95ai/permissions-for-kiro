@@ -18,6 +18,8 @@
   "Click the pencil to create": "鉛筆アイコンで作成できます",
   "User scope": "ユーザースコープ",
   "Workspace scope": "ワークスペーススコープ",
+  "Folder:": "フォルダー:",
+  "File:": "ファイル:",
   "The file does not exist yet.": "ファイルはまだ存在しません。",
   "Hash:": "ハッシュ:",
   "Resolved via:": "解決方法:",
