@@ -1,4 +1,4 @@
-name: Bug report
+name: 🐛 Bug report
 description: The extension misbehaves — wrong output, an error, or nothing shows up
 labels: [bug]
 body:

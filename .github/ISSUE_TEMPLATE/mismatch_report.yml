@@ -1,4 +1,4 @@
-name: Mismatch report
+name: 🔍 Mismatch report
 description: The view disagrees with what Kiro actually does
 labels: [mismatch]
 body:
