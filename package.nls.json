@@ -2,5 +2,6 @@
   "extension.description": "Visualize the permission rules that apply to your current workspace and user profile, and jump straight to the line that defines them.",
   "command.refresh.title": "Refresh",
   "command.openScopeFile.title": "Open Permissions File",
-  "command.revealLocation.title": "Go to Definition"
+  "command.revealLocation.title": "Go to Definition",
+  "viewsWelcome.loading": "Loading permissions..."
 }

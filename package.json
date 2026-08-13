@@ -58,6 +58,12 @@
         "title": "%command.revealLocation.title%"
       }
     ],
+    "viewsWelcome": [
+      {
+        "view": "permissionsForKiro.view",
+        "contents": "%viewsWelcome.loading%"
+      }
+    ],
     "menus": {
       "view/title": [
         {
