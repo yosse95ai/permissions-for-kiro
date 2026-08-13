@@ -42,10 +42,9 @@ Kiro は権限設定をワークスペース内に置きません。ホームデ
 
 ## インストール
 
-> [!NOTE]
-> **まだ公開していません。** 初回リリース後に Open VSX から導入できるようになります。
-
 Kiro の拡張ギャラリーは [Open VSX](https://open-vsx.org) を指しています。拡張ビューを開いて `Permissions for Kiro` を検索し、インストールしてください。
+
+公開ページは [yosse95ai.permissions-for-kiro](https://open-vsx.org/extension/yosse95ai/permissions-for-kiro) です。
 
 ## 使い方
 

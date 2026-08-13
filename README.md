@@ -42,10 +42,9 @@ More importantly, it shows **the rules that are actually in effect** rather than
 
 ## Installation
 
-> [!NOTE]
-> **Not published yet.** The extension will be available on Open VSX once the first release is out.
-
 Kiro's extension gallery points at [Open VSX](https://open-vsx.org). Open the Extensions view, search for `Permissions for Kiro`, and install it.
+
+The listing is at [yosse95ai.permissions-for-kiro](https://open-vsx.org/extension/yosse95ai/permissions-for-kiro).
 
 ## Usage
 
