@@ -117,7 +117,7 @@
     "@vitest/coverage-istanbul": "4.1.10",
     "@vscode/vsce": "3.9.2",
     "eslint-plugin-simple-import-sort": "14.0.0",
-    "oxlint": "1.78.0",
+    "oxlint": "1.79.0",
     "oxlint-tsgolint": "7.0.2001",
     "prettier": "3.9.6",
     "typescript": "7.0.2",
