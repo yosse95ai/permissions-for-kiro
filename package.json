@@ -112,7 +112,7 @@
     "yaml": "2.9.0"
   },
   "devDependencies": {
-    "@types/node": "26.2.0",
+    "@types/node": "26.6.2",
     "@types/vscode": "1.94.0",
     "@vitest/coverage-istanbul": "4.1.10",
     "@vscode/vsce": "3.9.2",
