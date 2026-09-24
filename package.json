@@ -118,7 +118,7 @@
     "@vscode/vsce": "3.9.2",
     "eslint-plugin-simple-import-sort": "14.0.0",
     "oxlint": "1.78.0",
-    "oxlint-tsgolint": "7.0.2001",
+    "oxlint-tsgolint": "7.0.2002",
     "prettier": "3.9.6",
     "typescript": "7.0.2",
     "vitest": "4.1.10"
