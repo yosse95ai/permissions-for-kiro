@@ -240,18 +240,18 @@ describe('ruleDescription / ruleAccessibilityLabel の状態表示', () => {
   });
 });
 
-describe('exclude の表示', () => {
-  function withExclude(patterns: string[], overrides = {}) {
-    return rule({
-      exclude: {
-        patterns: patterns.map((pattern, i) => ({ pattern, line: i + 5 })),
-        shape: 'list',
-        hasNonStringEntry: false,
-      },
-      ...overrides,
-    });
-  }
+function withExclude(patterns: string[], overrides = {}) {
+  return rule({
+    exclude: {
+      patterns: patterns.map((pattern, i) => ({ pattern, line: i + 5 })),
+      shape: 'list',
+      hasNonStringEntry: false,
+    },
+    ...overrides,
+  });
+}
 
+describe('exclude の表示', () => {
   it('exclude が無ければ description に出さない', () => {
     expect(exclusionSummary(rule())).toBeUndefined();
     expect(ruleDescription(rule())).toBe('all');
