@@ -231,11 +231,11 @@ describe('パターン行', () => {
   });
 });
 
-describe('子ノードの構成', () => {
-  async function childrenOf(scope: ScopeData): Promise<TreeNode[]> {
-    return provider.getChildren({ kind: 'scope', scope });
-  }
+async function childrenOf(scope: ScopeData): Promise<TreeNode[]> {
+  return provider.getChildren({ kind: 'scope', scope });
+}
 
+describe('子ノードの構成', () => {
   it('ルールをそのまま並べる', async () => {
     const children = await childrenOf(userScope({ rules: [rule(), rule()] }));
 
@@ -643,6 +643,17 @@ describe('パターン行の tooltip', () => {
   });
 });
 
+/** ルート要素から `ScopeData` を取り出す。TreeNode は毎回作り直されるため中身を見る。 */
+async function loadedScopes(): Promise<ScopeData[]> {
+  const children = await provider.getChildren();
+  return children.map((child) => {
+    if (child.kind !== 'scope') {
+      throw new Error('root children must be scopes');
+    }
+    return child.scope;
+  });
+}
+
 describe('ルート要素', () => {
   it('スコープの一覧を返す', async () => {
     // 実 HOME を読むため内容は環境依存。**必ず User スコープが含まれる**ことだけを見る。
@@ -654,17 +665,6 @@ describe('ルート要素', () => {
       true,
     );
   });
-
-  /** ルート要素から `ScopeData` を取り出す。TreeNode は毎回作り直されるため中身を見る。 */
-  async function loadedScopes(): Promise<ScopeData[]> {
-    const children = await provider.getChildren();
-    return children.map((child) => {
-      if (child.kind !== 'scope') {
-        throw new Error('root children must be scopes');
-      }
-      return child.scope;
-    });
-  }
 
   it('2 回目は読み込み結果を再利用する', async () => {
     const first = await loadedScopes();
