@@ -7,6 +7,7 @@ import type * as vscode from 'vscode';
 import {
   completionItems,
   completionSelector,
+  hoverAt,
   type IndentChange,
   type LineSource,
   permissionsFormatOf,
@@ -21,6 +22,7 @@ import {
   fireDidChangeTextDocument,
   MarkdownString,
   registeredCompletionProviders,
+  registeredHoverProviders,
   RelativePattern,
   resetMocks,
   SnippetString,
@@ -54,6 +56,18 @@ function isProvider(value: unknown): value is {
     value !== null &&
     'provideCompletionItems' in value &&
     typeof value.provideCompletionItems === 'function'
+  );
+}
+
+/** 登録されたプロバイダーが、ホバーを返す関数を持っているか。 */
+function isHoverProvider(value: unknown): value is {
+  provideHover(doc: LineSource, pos: { line: number; character: number }): unknown;
+} {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'provideHover' in value &&
+    typeof value.provideHover === 'function'
   );
 }
 
@@ -315,6 +329,15 @@ describe('shouldOpenSuggestAfter', () => {
     ).toBe(true);
   });
 
+  it('値のない match: のすぐ下では、キーの列に来ても開かない（`- ` を書くところ）', () => {
+    const lines = ['rules:', '  - capability: shell', '    match:', '    '];
+    expect(
+      shouldOpenSuggestAfter(change(watched(lines), { line: 2, character: 10 }, '\n    '), home),
+    ).toBe(false);
+    // 手動で開いた場合は、今までどおりキーの候補が出る
+    expect(labels(itemsAt('yaml', [...lines.slice(0, 3), '    |']))).toEqual(['effect', 'exclude']);
+  });
+
   it('YAML の空白 1 文字はトリガー文字で開くので、ここでは開かない', () => {
     const lines = ['rules:', '  - '];
     expect(
@@ -383,5 +406,99 @@ describe('Tab と Enter のあとに候補を開く（登録したリスナー�
     window.activeTextEditor = { document: doc, selections: [{}] };
     fireDidChangeTextDocument(change(doc, { line: 2, character: 2 }, '  '));
     expect(executedCommands).toEqual([]);
+  });
+});
+
+/** `|` の位置にマウスを乗せたときのホバー。 */
+function hoverOf(format: 'yaml' | 'json', lines: readonly string[]): vscode.Hover | undefined {
+  const line = lines.findIndex((text) => text.includes('|'));
+  const character = lines[line]!.indexOf('|');
+  const text = lines.map((value, i) => (i === line ? value.replace('|', '') : value));
+  return hoverAt(format, document(text), { line, character });
+}
+
+/** ホバーの Markdown の本文。 */
+function hoverText(hover: vscode.Hover | undefined): string | undefined {
+  const [contents] = Array.isArray(hover?.contents) ? hover.contents : [hover?.contents];
+  return contents instanceof MarkdownString ? contents.value : undefined;
+}
+
+const DOCS_LINK = '[Kiro documentation: Permissions](https://kiro.dev/docs/permissions/)';
+
+describe('hoverAt', () => {
+  it('capability の値に、補完と同じ説明とドキュメントへのリンクを出す', () => {
+    const hover = hoverOf('yaml', ['rules:', '  - capability: bui|ltin']);
+    expect(hoverText(hover)).toBe(
+      ['**builtin** — meta capability', 'All built-in tools.', DOCS_LINK].join('\n\n'),
+    );
+    expect(hover!.range).toMatchObject({
+      start: { line: 1, character: 16 },
+      end: { line: 1, character: 23 },
+    });
+    expect(hoverText(hoverOf('yaml', ['rules:', '  - capability: a|ll # all tools']))).toContain(
+      'Every capability except `sandbox_network`.',
+    );
+  });
+
+  it('説明文のない capability は、名前とリンクだけ', () => {
+    expect(hoverText(hoverOf('yaml', ['rules:', '  - capability: con|text']))).toBe(
+      ['**context**', DOCS_LINK].join('\n\n'),
+    );
+  });
+
+  it('キーと effect の値にも出す', () => {
+    expect(hoverText(hoverOf('yaml', ['ru|les:']))).toContain('**rules** — list of rules');
+    expect(
+      hoverText(hoverOf('yaml', ['rules:', '  - capability: shell', '    eff|ect: deny'])),
+    ).toContain('**effect** — required');
+    expect(
+      hoverText(hoverOf('yaml', ['rules:', '  - capability: shell', '    effect: de|ny'])),
+    ).toContain('`deny > ask > allow`');
+  });
+
+  it('引用符で囲んだ値と、JSON の値でも引用符を外して引く', () => {
+    expect(hoverText(hoverOf('yaml', ['rules:', '  - capability: "fs_r|ead"']))).toContain(
+      '**fs_read**',
+    );
+    expect(hoverText(hoverOf('json', ['{"rules": [{"capability": "mc|p"}]}']))).toContain(
+      '**mcp** — MCP tools',
+    );
+    expect(
+      hoverText(hoverOf('json', ['{"rules": [{"capability": "shell", "eff|ect": "ask"}]}'])),
+    ).toContain('**effect**');
+  });
+
+  it('未知の値、パターン、対象外の位置では出さない', () => {
+    expect(hoverOf('yaml', ['rules:', '  - capability: netw|ork'])).toBeUndefined();
+    expect(hoverOf('yaml', ['rules:', '  - unkn|own: x'])).toBeUndefined();
+    expect(
+      hoverOf('yaml', ['rules:', '  - capability: shell', '    match:', '      - "git |*"']),
+    ).toBeUndefined();
+    expect(hoverOf('yaml', ['# rul|es'])).toBeUndefined();
+  });
+});
+
+describe('registerCompletion のホバー', () => {
+  it('YAML と JSON のホバーを、補完と同じ selector で登録し、dispose で解放する', () => {
+    const disposables = register();
+    expect(registeredHoverProviders.map((provider) => provider.selector)).toEqual([
+      completionSelector('yaml', home),
+      completionSelector('json', home),
+    ]);
+
+    const provider = registeredHoverProviders[0]!.provider;
+    if (!isHoverProvider(provider)) {
+      throw new Error('provideHover is missing');
+    }
+    const hover = provider.provideHover(document(['rules:', '  - capability: all']), {
+      line: 1,
+      character: 17,
+    });
+    expect(hover).toMatchObject({ range: { start: { character: 16 } } });
+
+    for (const disposable of disposables) {
+      disposable.dispose();
+    }
+    expect(registeredHoverProviders).toHaveLength(0);
   });
 });

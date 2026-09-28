@@ -108,6 +108,13 @@ export enum CompletionItemKind {
   EnumMember = 19,
 }
 
+export class Hover {
+  constructor(
+    public contents: MarkdownString,
+    public range?: Range,
+  ) {}
+}
+
 export class SnippetString {
   constructor(public value: string = '') {}
 }
@@ -288,6 +295,9 @@ export interface RegisteredCompletionProvider {
 
 export const registeredCompletionProviders: RegisteredCompletionProvider[] = [];
 
+/** `registerHoverProvider` で登録されたプロバイダー。dispose で一覧から取り除く。 */
+export const registeredHoverProviders: Array<{ selector: unknown; provider: unknown }> = [];
+
 /** テストからワークスペースフォルダの変更を発火する。 */
 export function fireWorkspaceFoldersChange(): void {
   workspaceFoldersEmitter.fire();
@@ -310,6 +320,7 @@ export function resetMocks(): void {
   registeredCommands.clear();
   createdTreeViews.length = 0;
   registeredCompletionProviders.length = 0;
+  registeredHoverProviders.length = 0;
   executedCommands.length = 0;
   window.activeTextEditor = undefined;
 }
@@ -373,6 +384,18 @@ export const commands = {
 };
 
 export const languages = {
+  registerHoverProvider: (selector: unknown, provider: unknown) => {
+    const registration = { selector, provider };
+    registeredHoverProviders.push(registration);
+    return {
+      dispose: () => {
+        const index = registeredHoverProviders.indexOf(registration);
+        if (index >= 0) {
+          registeredHoverProviders.splice(index, 1);
+        }
+      },
+    };
+  },
   registerCompletionItemProvider: (
     selector: unknown,
     provider: unknown,

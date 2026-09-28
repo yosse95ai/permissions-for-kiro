@@ -225,9 +225,11 @@ function keyInsertText(
       : { insertText: '"rules": [{"capability": "$1"}]', snippet: true };
   }
   if (format === 'yaml') {
-    // リストのキーは次の行から要素を書くので、`:` で止める。
-    const isList = key === 'match' || key === 'exclude';
-    return { insertText: isList ? `${key}:` : `${key}: `, snippet: false };
+    // リストのキーの下には `- ` で要素を書くので、次の行の `- ` まで入れる。深さは Kiro の
+    // ドキュメントの例と同じく 1 段深くする。
+    return key === 'match' || key === 'exclude'
+      ? { insertText: `${key}:\n\t- $0`, snippet: true }
+      : { insertText: `${key}: `, snippet: false };
   }
   switch (key) {
     case 'match':
@@ -238,11 +240,30 @@ function keyInsertText(
   }
 }
 
+/**
+ * キーを確定したあとに、続けて値の候補を開くか。
+ *
+ * 値の候補があるキーだけ開く。`rules` は最初のルールの capability の値まで入れるので開く。
+ * `match` / `exclude` は、そのルールの capability にパターンのひな型があるときだけ開く
+ * （ないときに開くと、ファイル内の単語の候補しか出ない）。キーの名前だけを直しているときは、
+ * 値はもう書かれているので開かない。
+ */
+function opensValues(key: string, colonAfter: boolean, capability: string | undefined): boolean {
+  if (colonAfter) {
+    return false;
+  }
+  if (key === 'match' || key === 'exclude') {
+    return capability !== undefined && patternTemplates(capability) !== undefined;
+  }
+  return key === 'rules' || key === 'capability' || key === 'effect';
+}
+
 function keyCandidates(
   keys: readonly string[],
   present: readonly string[],
   format: PermissionsFormat,
   colonAfter: boolean,
+  capability?: string,
 ): Candidate[] {
   const descriptions = keyDescriptions();
   return keys
@@ -255,11 +276,7 @@ function keyCandidates(
         insertText,
         snippet,
         sortText: sortKey(keys.indexOf(key)),
-        // 値の候補があるキーだけ、続けて値の候補を開く（`rules` は最初のルールの capability の
-        // 値まで入れるので、capability の候補を開く）。キーの名前だけを直しているときは、値は
-        // もう書かれているので開かない。
-        triggerSuggest:
-          !colonAfter && (key === 'rules' || key === 'capability' || key === 'effect'),
+        triggerSuggest: opensValues(key, colonAfter, capability),
       };
       return Object.assign(candidate, descriptions[key]);
     });
@@ -292,7 +309,13 @@ export function completionCandidates(site: CompletionSite, format: PermissionsFo
       return keyCandidates(['rules'], site.present, format, site.colonAfter);
 
     case 'rule-key':
-      return keyCandidates(KNOWN_RULE_FIELDS, site.present, format, site.colonAfter);
+      return keyCandidates(
+        KNOWN_RULE_FIELDS,
+        site.present,
+        format,
+        site.colonAfter,
+        site.capability,
+      );
 
     case 'capability-value':
       return valueCandidates(KNOWN_CAPABILITIES, capabilityDescriptions(), format);
@@ -325,4 +348,50 @@ export function completionCandidates(site: CompletionSite, format: PermissionsFo
       }));
     }
   }
+}
+
+/** 説明文の出典。ホバーの末尾にリンクを付ける。 */
+export const PERMISSIONS_DOCS_URL = 'https://kiro.dev/docs/permissions/';
+
+/**
+ * 書かれたキーや値にマウスを乗せたときの説明（Markdown）。
+ *
+ * 補完の一覧と同じ説明文を使い、末尾に Kiro のドキュメントへのリンクを付ける。説明文の
+ * 範囲は補完と同じく、ドキュメントに書かれている内容だけ（含まれる capability の一覧などは、
+ * リンク先で確かめてもらう）。
+ *
+ * @param word 引用符を外した、書かれているキーか値
+ * @returns 説明する語でなければ `undefined`（未知の capability、パターンなど）
+ */
+export function hoverMarkdown(site: CompletionSite, word: string): string | undefined {
+  let descriptions: Record<string, Description>;
+  let known: readonly string[];
+  switch (site.kind) {
+    case 'top-level-key':
+      descriptions = keyDescriptions();
+      known = ['rules'];
+      break;
+    case 'rule-key':
+      descriptions = keyDescriptions();
+      known = KNOWN_RULE_FIELDS;
+      break;
+    case 'capability-value':
+      descriptions = capabilityDescriptions();
+      known = KNOWN_CAPABILITIES;
+      break;
+    case 'effect-value':
+      descriptions = effectDescriptions();
+      known = VALID_EFFECTS;
+      break;
+    default:
+      return undefined;
+  }
+  if (!known.includes(word)) {
+    return undefined;
+  }
+
+  const { detail, documentation } = descriptions[word] ?? {};
+  const heading = detail === undefined ? `**${word}**` : `**${word}** — ${detail}`;
+  const link = `[${vscode.l10n.t('Kiro documentation: {0}', 'Permissions')}](${PERMISSIONS_DOCS_URL})`;
+  return [heading, documentation, link].filter((part) => part !== undefined).join('\n\n');
 }

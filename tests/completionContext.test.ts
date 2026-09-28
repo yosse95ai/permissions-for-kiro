@@ -5,6 +5,7 @@ import {
   completionRequest,
   cursorAfterWhitespace,
   type CursorPosition,
+  isBelowEmptyYamlList,
   jsonCompletionRequest,
   yamlCompletionRequest,
 } from '../src/completionContext';
@@ -32,6 +33,11 @@ function at(lines: readonly string[]): { lines: string[]; position: CursorPositi
 function yaml(lines: readonly string[]): CompletionRequest | undefined {
   const { lines: text, position } = at(lines);
   return yamlCompletionRequest(text, position);
+}
+
+function below(lines: readonly string[]): boolean {
+  const { lines: text, position } = at(lines);
+  return isBelowEmptyYamlList(text, position);
 }
 
 function json(lines: readonly string[]): CompletionRequest | undefined {
@@ -84,7 +90,7 @@ describe('yamlCompletionRequest（基本の位置）', () => {
 
   it('2 つ目のキーでは、書かれたキーを present に入れる', () => {
     expect(yaml(['rules:', '  - capability: shell', '    e|'])).toEqual({
-      site: { kind: 'rule-key', present: ['capability'], colonAfter: false },
+      site: { kind: 'rule-key', present: ['capability'], colonAfter: false, capability: 'shell' },
       replace: { start: 4, end: 5 },
     });
   });
@@ -175,7 +181,7 @@ describe('yamlCompletionRequest（手順ごとの境界）', () => {
   describe('空白だけの行は、カーソルの列で所属先を決める', () => {
     it('キーの列ならルールのキー', () => {
       expect(yaml(['rules:', '  - capability: shell', '    |'])).toEqual({
-        site: { kind: 'rule-key', present: ['capability'], colonAfter: false },
+        site: { kind: 'rule-key', present: ['capability'], colonAfter: false, capability: 'shell' },
         replace: { start: 4, end: 4 },
       });
     });
@@ -197,7 +203,7 @@ describe('yamlCompletionRequest（手順ごとの境界）', () => {
   describe('`rules:` や `match:` と同じ列に `-` を書く書き方', () => {
     it('ルールのキー', () => {
       expect(yaml(['rules:', '- capability: shell', '  e|'])).toEqual({
-        site: { kind: 'rule-key', present: ['capability'], colonAfter: false },
+        site: { kind: 'rule-key', present: ['capability'], colonAfter: false, capability: 'shell' },
         replace: { start: 2, end: 3 },
       });
     });
@@ -212,7 +218,7 @@ describe('yamlCompletionRequest（手順ごとの境界）', () => {
 
   it('`-` だけの行で始まるルールは、次の行からキーの列を決める', () => {
     expect(yaml(['rules:', '  -', '    capability: shell', '    e|'])).toEqual({
-      site: { kind: 'rule-key', present: ['capability'], colonAfter: false },
+      site: { kind: 'rule-key', present: ['capability'], colonAfter: false, capability: 'shell' },
       replace: { start: 4, end: 5 },
     });
   });
@@ -240,7 +246,7 @@ describe('yamlCompletionRequest（手順ごとの境界）', () => {
   describe('置換範囲', () => {
     it('キーの名前だけを直しているときは colonAfter にし、キーの終わりまで置き換える', () => {
       expect(yaml(['rules:', '  - capa|bility: shell'])).toEqual({
-        site: { kind: 'rule-key', present: [], colonAfter: true },
+        site: { kind: 'rule-key', present: [], colonAfter: true, capability: 'shell' },
         replace: { start: 4, end: 14 },
       });
     });
@@ -348,7 +354,12 @@ describe('yamlCompletionRequest（手順ごとの境界）', () => {
     expect(
       yaml(['rules:', '  - capability: shell', '    match:', '      - git *', '    |']),
     ).toEqual({
-      site: { kind: 'rule-key', present: ['capability', 'match'], colonAfter: false },
+      site: {
+        kind: 'rule-key',
+        present: ['capability', 'match'],
+        colonAfter: false,
+        capability: 'shell',
+      },
       replace: { start: 4, end: 4 },
     });
   });
@@ -369,6 +380,25 @@ describe('yamlCompletionRequest（手順ごとの境界）', () => {
     expect(
       yaml(['rules:', '  -', '', '    # note', '    capability: shell', '    e|']),
     ).toMatchObject({ site: { kind: 'rule-key', present: ['capability'] } });
+  });
+
+  describe('isBelowEmptyYamlList', () => {
+    it('値のない match: / exclude: のすぐ下の、キーと同じ列なら true', () => {
+      expect(below(['rules:', '  - capability: shell', '    match:', '    |'])).toBe(true);
+      expect(below(['rules:', '  - capability: shell', '    exclude: # note', '    |'])).toBe(true);
+      expect(below(['rules:', '  - match:', '    |'])).toBe(true);
+      // 空行とコメントは読み飛ばす
+      expect(below(['rules:', '  - capability: shell', '    match:', '', '    # x', '    |'])).toBe(
+        true,
+      );
+    });
+
+    it('それ以外は false', () => {
+      expect(below(['rules:', '  - capability: shell', '    match: ["a"]', '    |'])).toBe(false);
+      expect(below(['rules:', '  - capability: shell', '    effect: deny', '    |'])).toBe(false);
+      expect(below(['rules:', '  - capability: shell', '    match:', '  |'])).toBe(false);
+      expect(below(['|'])).toBe(false);
+    });
   });
 
   describe('cursorAfterWhitespace', () => {
@@ -469,7 +499,7 @@ describe('jsonCompletionRequest（境界）', () => {
     expect(
       json(['{', '  "rules": [', '    {', '      "capability": "shell",', '      "e|"']),
     ).toEqual({
-      site: { kind: 'rule-key', present: ['capability'], colonAfter: false },
+      site: { kind: 'rule-key', present: ['capability'], colonAfter: false, capability: 'shell' },
       replace: { start: 6, end: 9 },
     });
   });
@@ -496,7 +526,7 @@ describe('jsonCompletionRequest（境界）', () => {
 
   it('キーの名前だけを直しているときは colonAfter にし、自分のキーは present に入れない', () => {
     expect(json(['{"rules": [{"capa|bility": "shell", "effect": "ask"}]}'])).toEqual({
-      site: { kind: 'rule-key', present: ['effect'], colonAfter: true },
+      site: { kind: 'rule-key', present: ['effect'], colonAfter: true, capability: 'shell' },
       replace: { start: 12, end: 24 },
     });
   });

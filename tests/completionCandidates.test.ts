@@ -26,10 +26,15 @@ function pattern(capability: string | undefined): CompletionSite {
   return { kind: 'pattern', list: 'match', capability };
 }
 
-const ruleKey = (present: string[] = [], colonAfter = false): CompletionSite => ({
+const ruleKey = (
+  present: string[] = [],
+  colonAfter = false,
+  capability?: string,
+): CompletionSite => ({
   kind: 'rule-key',
   present,
   colonAfter,
+  capability,
 });
 
 /** 並び順どおりか（`sortText` で並べたときに配列の順になるか）。 */
@@ -55,17 +60,44 @@ describe('completionCandidates: キー', () => {
     expect(isSorted(completionCandidates(ruleKey(), 'yaml'))).toBe(true);
   });
 
-  it('YAML は値を書く位置まで入れ、リストのキーは `:` で止める', () => {
+  it('YAML は値を書く位置まで入れ、リストのキーは次の行の `- ` まで入れる', () => {
     const inserted = Object.fromEntries(
-      completionCandidates(ruleKey(), 'yaml').map((c) => [c.label, c.insertText]),
+      completionCandidates(ruleKey(), 'yaml').map((c) => [c.label, [c.insertText, c.snippet]]),
     );
     expect(inserted).toEqual({
-      capability: 'capability: ',
-      effect: 'effect: ',
-      match: 'match:',
-      exclude: 'exclude:',
+      capability: ['capability: ', false],
+      effect: ['effect: ', false],
+      match: ['match:\n\t- $0', true],
+      exclude: ['exclude:\n\t- $0', true],
     });
-    expect(completionCandidates(ruleKey(), 'yaml').every((c) => !c.snippet)).toBe(true);
+  });
+
+  it('YAML の `match:` の下に入れた `- ` は、Kiro と同じ yaml.parse でリストとして読める', () => {
+    const [match] = completionCandidates(ruleKey(['capability', 'effect']), 'yaml');
+    // エディタは `\t` を字下げの設定に置き換え、次の行の先頭に今の行の字下げを足す。
+    const inserted = expand(match!).replace('\n\t', '\n      ');
+    const text = [
+      'rules:',
+      '  - capability: shell',
+      '    effect: deny',
+      `    ${inserted}"git *"`,
+    ].join('\n');
+    expect(parseYaml(text)).toEqual({
+      rules: [{ capability: 'shell', effect: 'deny', match: ['git *'] }],
+    });
+  });
+
+  it('`match` / `exclude` は、ルールの capability にひな型があるときだけ確定後に候補を開く', () => {
+    const opened = (capability: string | undefined): string[] =>
+      completionCandidates(ruleKey([], false, capability), 'yaml')
+        .filter((c) => c.triggerSuggest)
+        .map((c) => c.label);
+    expect(opened('shell')).toEqual(['capability', 'effect', 'match', 'exclude']);
+    expect(opened('fs_read')).toEqual(['capability', 'effect', 'match', 'exclude']);
+    expect(opened('web_fetch')).toEqual(['capability', 'effect']);
+    expect(opened(undefined)).toEqual(['capability', 'effect']);
+    const json = completionCandidates(ruleKey([], false, 'mcp'), 'json');
+    expect(json.filter((c) => c.triggerSuggest).map((c) => c.label)).toContain('match');
   });
 
   it('JSON は値の側までスニペットで入れる', () => {

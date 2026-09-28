@@ -3,8 +3,18 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
-import { type Candidate, type CandidateKind, completionCandidates } from './completionCandidates';
-import { completionRequest, cursorAfterWhitespace, type CursorPosition } from './completionContext';
+import {
+  type Candidate,
+  type CandidateKind,
+  completionCandidates,
+  hoverMarkdown,
+} from './completionCandidates';
+import {
+  completionRequest,
+  cursorAfterWhitespace,
+  type CursorPosition,
+  isBelowEmptyYamlList,
+} from './completionContext';
 import {
   PERMISSIONS_FILES,
   type PermissionsFormat,
@@ -14,7 +24,7 @@ import {
 import { isPermissionsFile } from './watch';
 
 /**
- * permissions ファイルを編集するときの補完を登録する層。
+ * permissions ファイルを編集するときの補完とホバーを登録する層。
  *
  * 文脈の判定（`completionContext.ts`）と候補（`completionCandidates.ts`）は vscode に
  * 依存しない。ここでは selector の組み立てと、`CompletionItem` への変換だけを行う。
@@ -50,6 +60,11 @@ const TRIGGER_SUGGEST: vscode.Command = {
 export interface LineSource {
   readonly lineCount: number;
   lineAt(line: number): { readonly text: string };
+}
+
+/** 文書の全行。 */
+function linesOf(document: LineSource): string[] {
+  return Array.from({ length: document.lineCount }, (_, i) => document.lineAt(i).text);
 }
 
 /** 形式に対応するファイル名。`PERMISSIONS_FILES` にない名前になると型エラーになる。 */
@@ -127,7 +142,7 @@ export function completionItems(
   document: LineSource,
   position: CursorPosition,
 ): vscode.CompletionItem[] | undefined {
-  const lines = Array.from({ length: document.lineCount }, (_, i) => document.lineAt(i).text);
+  const lines = linesOf(document);
   const request = completionRequest(format, lines, position);
   if (request === undefined) {
     return undefined;
@@ -144,6 +159,39 @@ export function completionItems(
   );
   const typed = lines[position.line]!.slice(request.replace.start, position.character);
   return candidates.map((candidate) => toItem(candidate, range, typed));
+}
+
+/**
+ * 書かれたキーや値にマウスを乗せたときの説明。
+ *
+ * 補完と同じ文脈の判定を使う。カーソルがキーや値の中にあれば、その範囲が返るので、範囲の
+ * 文字列（引用符を外したもの）で説明を引く。
+ */
+export function hoverAt(
+  format: PermissionsFormat,
+  document: LineSource,
+  position: CursorPosition,
+): vscode.Hover | undefined {
+  const lines = linesOf(document);
+  const request = completionRequest(format, lines, position);
+  if (request === undefined) {
+    return undefined;
+  }
+
+  const { start, end } = request.replace;
+  const written = lines[position.line]!.slice(start, end);
+  const word = /^(["'])(.*?)\1?$/.exec(written)?.[2] ?? written;
+  const markdown = hoverMarkdown(request.site, word);
+  if (markdown === undefined) {
+    return undefined;
+  }
+  return new vscode.Hover(
+    new vscode.MarkdownString(markdown),
+    new vscode.Range(
+      new vscode.Position(position.line, start),
+      new vscode.Position(position.line, end),
+    ),
+  );
 }
 
 /** 変更の監視に必要な分だけの `TextDocument`。 */
@@ -201,7 +249,15 @@ export function shouldOpenSuggestAfter(change: IndentChange, home: string): bool
     return false;
   }
   const position = cursorAfterWhitespace(content.range.start, content.text);
-  return position !== undefined && completionItems(format, change.document, position) !== undefined;
+  if (position === undefined) {
+    return false;
+  }
+  // 値のない `match:` / `exclude:` のすぐ下は、`- ` で要素を書くところなので、キーの候補を
+  // 自動では開かない。
+  if (format === 'yaml' && isBelowEmptyYamlList(linesOf(change.document), position)) {
+    return false;
+  }
+  return completionItems(format, change.document, position) !== undefined;
 }
 
 /**
@@ -225,7 +281,7 @@ function openSuggestAfterIndent(home: string): vscode.Disposable {
   });
 }
 
-/** YAML と JSON の補完を登録する。 */
+/** YAML と JSON の補完とホバーを登録する。 */
 export function registerCompletion(home: string = os.homedir()): vscode.Disposable[] {
   const formats: PermissionsFormat[] = ['yaml', 'json'];
   return [
@@ -238,6 +294,12 @@ export function registerCompletion(home: string = os.homedir()): vscode.Disposab
         },
         TRIGGER_CHARACTERS[format],
       ),
+    ),
+    ...formats.map((format) =>
+      vscode.languages.registerHoverProvider(completionSelector(format, home), {
+        provideHover: (document: LineSource, position: CursorPosition) =>
+          hoverAt(format, document, position),
+      }),
     ),
     openSuggestAfterIndent(home),
   ];

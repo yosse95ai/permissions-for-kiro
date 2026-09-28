@@ -66,12 +66,12 @@ parse.ts                 YAML / JSON parsing                     no vscode depen
 validate.ts              Kiro's validation rules                 no vscode dependency
 completionContext.ts     where the cursor is, for completion     no vscode dependency
 display.ts               pure display logic                      depends on vscode.l10n only
-completionCandidates.ts  completion candidates and descriptions  depends on vscode.l10n only
+completionCandidates.ts  completion candidates, hover text       depends on vscode.l10n only
 model.ts                 loading and validating a scope
 tree.ts                  TreeDataProvider and TreeItem
 commands.ts              refresh / open / reveal
 watch.ts                 file watching and debouncing
-completion.ts            completion provider registration
+completion.ts            completion and hover registration
 extension.ts             activate / deactivate
 ```
 

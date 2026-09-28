@@ -41,6 +41,8 @@ export type CompletionSite =
       /** 同じルールにすでに書かれているキー（カーソルの行は除く） */
       present: readonly string[];
       colonAfter: boolean;
+      /** 同じルールの `capability` の値。`match` / `exclude` の確定後にひな型を開くかに使う */
+      capability: string | undefined;
     }
   | { kind: 'capability-value' }
   | { kind: 'effect-value' }
@@ -452,6 +454,7 @@ function ruleRequest(
     kind: 'rule-key',
     present: keysOfRule(lines, rule, lineIndex),
     colonAfter,
+    capability: capabilityOfRule(lines, rule),
   });
   // 空白だけの行: カーソルの列をインデントとみなす。キーの列なら新しいキーを書く位置。
   if (isBlank(line)) {
@@ -572,6 +575,12 @@ function nodeAt(root: JsonNode | undefined, path: (string | number)[]): JsonNode
   return root === undefined ? undefined : findNodeAtLocation(root, path);
 }
 
+/** `path` の値が文字列ならその値。 */
+function stringAt(root: JsonNode | undefined, path: (string | number)[]): string | undefined {
+  const node = nodeAt(root, path);
+  return node?.type === 'string' && typeof node.value === 'string' ? node.value : undefined;
+}
+
 /** オブジェクトのキーを集める。`skipKeyAt` の位置のキー（書いている途中のもの）は除く。 */
 function keysOfObject(node: JsonNode | undefined, skipKeyAt: number | undefined): string[] {
   if (node?.type !== 'object') {
@@ -653,7 +662,12 @@ export function jsonCompletionRequest(
     if (isRulePath(path, 3)) {
       const rule = nodeAt(root, ['rules', path[1]!]);
       return {
-        site: { kind: 'rule-key', present: keysOfObject(rule, editingKeyAt), colonAfter },
+        site: {
+          kind: 'rule-key',
+          present: keysOfObject(rule, editingKeyAt),
+          colonAfter,
+          capability: stringAt(root, ['rules', path[1]!, 'capability']),
+        },
         replace,
       };
     }
@@ -673,11 +687,7 @@ export function jsonCompletionRequest(
     (list === 'match' || list === 'exclude') &&
     typeof path[3] === 'number'
   ) {
-    const capabilityNode = nodeAt(root, ['rules', path[1]!, 'capability']);
-    const capability =
-      capabilityNode?.type === 'string' && typeof capabilityNode.value === 'string'
-        ? capabilityNode.value
-        : undefined;
+    const capability = stringAt(root, ['rules', path[1]!, 'capability']);
     return { site: { kind: 'pattern', list, capability }, replace };
   }
 
@@ -706,6 +716,27 @@ export function cursorAfterWhitespace(
   return lines.length === 1
     ? { line: start.line, character: start.character + text.length }
     : { line: start.line + lines.length - 1, character: last.length };
+}
+
+/** 値のない `match:` / `exclude:` の行（ルールの開始行の `- match:` も含む）。 */
+const EMPTY_LIST_KEY_LINE = /^(\s*(?:-\s+)?)(?:match|exclude):\s*(?:#.*)?$/;
+
+/**
+ * YAML で、カーソルが値のない `match:` / `exclude:` のすぐ下の、キーと同じ列にあるか。
+ *
+ * その位置は、普通は `- ` で要素を書き始めるところ。Enter で字下げがキーの列に来ても、
+ * キーの候補を自動で開かないために使う（手動で開けば、今までどおりキーの候補は出る）。
+ */
+export function isBelowEmptyYamlList(lines: readonly string[], position: CursorPosition): boolean {
+  for (let i = position.line - 1; i >= 0; i--) {
+    const line = lines[i]!.replace(/\r$/, '');
+    if (isBlank(line) || line.trimStart().startsWith('#')) {
+      continue;
+    }
+    const match = EMPTY_LIST_KEY_LINE.exec(line);
+    return match !== null && match[1]!.length === position.character;
+  }
+  return false;
 }
 
 /** 形式に合わせて文脈を判定する。 */
