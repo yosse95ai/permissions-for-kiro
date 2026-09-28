@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { registerCommands } from './commands';
+import { registerCompletion } from './completion';
 import { PermissionsTreeDataProvider, VIEW_ID } from './tree';
 import { watchPermissions } from './watch';
 
@@ -26,6 +27,7 @@ export function activate(context: Pick<vscode.ExtensionContext, 'subscriptions'>
     ...watchPermissions(() => {
       provider.refresh();
     }),
+    ...registerCompletion(),
   );
 }
 

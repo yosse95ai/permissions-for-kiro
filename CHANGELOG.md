@@ -4,6 +4,12 @@ All notable changes to this extension are recorded here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). **While the version is below `1.0.0`, expect the view to keep moving.** The extension reproduces internals of Kiro itself and has to follow them as they change.
 
+## Unreleased
+
+### Added
+
+- Completion while editing `permissions.yaml` and `permissions.json`: rule fields, capability names, and effect values, plus pattern templates for file, shell, and MCP rules, each with a short description
+
 ## 0.1.1 - 2026-08-13
 
 ### Fixed

@@ -4,7 +4,13 @@ import type * as vscode from 'vscode';
 import { OPEN_SCOPE_FILE_COMMAND, REFRESH_COMMAND } from '../src/commands';
 import { activate, deactivate } from '../src/extension';
 import { REVEAL_LOCATION_COMMAND, VIEW_ID } from '../src/tree';
-import { createdTreeViews, createdWatchers, registeredCommands, resetMocks } from './mocks/vscode';
+import {
+  createdTreeViews,
+  createdWatchers,
+  registeredCommands,
+  registeredCompletionProviders,
+  resetMocks,
+} from './mocks/vscode';
 
 /**
  * `activate()` の配線を確かめる。
@@ -47,6 +53,14 @@ describe('activate', () => {
     expect(createdWatchers).toHaveLength(2);
   });
 
+  it('YAML と JSON の補完を登録する', () => {
+    activate(context());
+    expect(registeredCompletionProviders.map((provider) => provider.triggerCharacters)).toEqual([
+      [' '],
+      ['"'],
+    ]);
+  });
+
   it('作ったリソースをすべて subscriptions に登録する', () => {
     const ctx = context();
 
@@ -59,7 +73,7 @@ describe('activate', () => {
     }
   });
 
-  it('subscriptions を dispose するとビューと監視が解放される', () => {
+  it('subscriptions を dispose するとビュー・監視・補完が解放される', () => {
     const ctx = context();
     activate(ctx);
 
@@ -70,6 +84,7 @@ describe('activate', () => {
     expect(createdTreeViews[0]!.disposed).toBe(true);
     expect(createdWatchers.every((watcher) => watcher.disposed)).toBe(true);
     expect(registeredCommands.size).toBe(0);
+    expect(registeredCompletionProviders).toHaveLength(0);
   });
 });
 
