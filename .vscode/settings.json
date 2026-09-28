@@ -10,6 +10,10 @@
     {
       "fileMatch": [".oxlintrc.json"],
       "url": "./node_modules/oxlint/configuration_schema.json"
+    },
+    {
+      "fileMatch": ["bun.lock"],
+      "schema": { "allowTrailingCommas": true }
     }
   ],
   "search.exclude": {
