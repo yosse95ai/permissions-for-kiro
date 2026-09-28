@@ -5,7 +5,7 @@ import { KNOWN_CAPABILITIES, validatePermissions } from '../src/validate';
 import { makeParseResult, makeRule } from './fixtures';
 
 /**
- * Kiro 本体の検証仕様（memory.md 3.4）を再現できているかを確認する。
+ * Kiro 本体の検証仕様を再現できているかを確認する。
  *
  * **fatal と non-fatal の区別が要点。** fatal は設定全体が読み込まれず fail closed になり、
  * non-fatal はそのルールだけが捨てられる。

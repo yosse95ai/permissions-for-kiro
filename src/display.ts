@@ -8,14 +8,14 @@ import type { ScopeValidation } from './validate';
 const SEPARATOR = ' · ';
 
 export interface Appearance {
-  /** codicon の ID。存在確認は `@vscode/codicons` の `codicon.css` で行う（memory.md 4.2 の codicon の項） */
+  /** codicon の ID。存在確認は `@vscode/codicons` の `codicon.css` で行う（存在しない ID を渡しても例外にならず、アイコンが空白になるだけのため） */
   icon: string;
   /** テーマカラーの ID。**省略すると既定色**（無彩色）になる */
   color?: string;
 }
 
 /**
- * ルールが実際に効いているか（Q33 = C）。
+ * ルールが実際に効いているか。
  *
  * | 値 | 意味 |
  * | - | - |
@@ -56,7 +56,7 @@ export const MATCH_APPEARANCE: Appearance = { icon: 'gear', color: 'charts.green
  * `exclude` のパターン行の見た目。
  *
  * **灰色にする。** 赤は `deny` と `not loaded` で既に使っていて意味を増やしたくない。
- * `match` 行が既定色なので、**色の濃淡と形の両方**で区別できる（Q35）。
+ * `match` 行が既定色なので、**色の濃淡と形の両方**で区別できる。
  */
 export const EXCLUDE_APPEARANCE: Appearance = {
   icon: 'exclude',
@@ -73,7 +73,7 @@ export const SKIPPED_APPEARANCE: Appearance = {
  * スコープ全体が読み込まれていないときのルールの見た目。
  *
  * **色を付けない。** 緑の `pass-filled` が並んだままだと「許可されている」と誤読されるため、
- * 無彩色の輪郭だけにして効いていないことを示す（Q33 の案 b）。
+ * 無彩色の輪郭だけにして効いていないことを示す。
  */
 export const INACTIVE_APPEARANCE: Appearance = { icon: 'circle-outline' };
 
@@ -124,11 +124,11 @@ export function exclusionSummary(rule: PermissionRule): string | undefined {
  * ルール行の description。
  *
  * `deny` / `ask` のときだけ effect を文字で併記する（`allow` は無標）。実データでは大半が
- * `allow` なので、全行に書くと本当に注意すべき `deny` が埋もれる（Q15）。
+ * `allow` なので、全行に書くと本当に注意すべき `deny` が埋もれる。
  */
 export function ruleDescription(rule: PermissionRule, state: RuleState = 'active'): string {
   const parts: string[] = [];
-  // 効いていないことを先頭に出す。アイコンだけだと見落とすため（Q33 の案 a）。
+  // 効いていないことを先頭に出す。アイコンだけだと見落とすため。
   if (state === 'skipped') {
     parts.push(vscode.l10n.t('skipped'));
   }
@@ -151,7 +151,7 @@ export function ruleDescription(rule: PermissionRule, state: RuleState = 'active
  * ルール行の読み上げ用ラベル。
  *
  * effect をアイコンだけで表すとスクリーンリーダーには伝わらないため、`allow` も含めて
- * 完全な情報を入れる（Q15）。
+ * 完全な情報を入れる。
  */
 export function ruleAccessibilityLabel(rule: PermissionRule, state: RuleState = 'active'): string {
   const parts = [rule.capability, rule.effect, matchSummary(rule)];
@@ -173,7 +173,7 @@ export function ruleAccessibilityLabel(rule: PermissionRule, state: RuleState = 
 /**
  * ルールが子ノード（パターン行）を持つか。
  *
- * **パターンが 1 件でも子を作る**（Q36）。件数によって「description に出す」「子に出す」が
+ * **パターンが 1 件でも子を作る**。件数によって「description に出す」「子に出す」が
  * 切り替わると、同じ種類の情報の置き場所が揺れて読みづらい。ツリー形式に統一する。
  *
  * 子を持たないのは `match` 省略かつ `exclude` 無し（= 全対象）の場合だけ。
@@ -186,7 +186,7 @@ export function hasPatternChildren(rule: PermissionRule): boolean {
  * スコープ行の description。
  *
  * 折りたたんだ状態でも異常（未設定・解析エラー・**読み込まれていない**）と規模が分かる
- * ようにする（Q15 / Q33）。
+ * ようにする。
  *
  * 優先順位は「より具体的な情報を優先する」。`parse error` は fatal の一種だが、原因が
  * はっきりしているので `not loaded` より前に出す。
@@ -212,7 +212,7 @@ export function scopeDescription(content: ScopeContent, validation: ScopeValidat
   if (validation.skipped.size === 0) {
     return rules;
   }
-  // 折りたたんでいても skip の存在に気付けるようにする（Q33 の案 a）。
+  // 折りたたんでいても skip の存在に気付けるようにする。
   return `${rules}${SEPARATOR}${vscode.l10n.t('{0} skipped', validation.skipped.size)}`;
 }
 
@@ -250,16 +250,16 @@ const POSITION_SUFFIX = / at line \d+, column \d+:?$/;
 /**
  * パースエラー 1 件のラベル。行番号は 1-based に直して見せる。
  *
- * **1 行目だけを使い、末尾の位置情報を落とす**（Q37 = D）。`yaml` パッケージの `message` は
+ * **1 行目だけを使い、末尾の位置情報を落とす**。`yaml` パッケージの `message` は
  * 説明文 + 該当箇所のスニペット + キャレットの**複数行**で、`TreeItem.label` は最初の改行
- * までしか表示しない（memory.md 4.2）。さらに `Line N:` と ` at line N, column M:` が
+ * までしか表示しない。さらに `Line N:` と ` at line N, column M:` が
  * 重複するぶん、既定のサイドバー幅では説明が切り詰められて読めなくなる。
  *
  * **語句自体には手を入れない。** 全文は tooltip に出す（`tree.ts` の `messageTreeItem`）ので、
  * Kiro 本体の通知やパーサのドキュメントと突き合わせる用途はそちらが担う。
  *
  * **翻訳しない。** `message` は `yaml` パッケージが返す英語固定の文字列で訳す手段がなく、
- * 枠だけ訳すと 1 行の中で言語が混ざる（Q31）。
+ * 枠だけ訳すと 1 行の中で言語が混ざる。
  */
 export function formatParseError(error: { line: number; message: string }): string {
   const [firstLine = ''] = error.message.split('\n');

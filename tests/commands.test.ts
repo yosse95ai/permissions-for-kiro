@@ -28,7 +28,7 @@ import {
 /**
  * コマンドのテスト。
  *
- * **ファイルの作成は一時ディレクトリで実際に行う。** `~/.kiro` には書き込めない（memory.md 4.6）し、
+ * **ファイルの作成は一時ディレクトリで実際に行う。** 本物の `~/.kiro` には書き込まない（利用者の permissions ファイルを壊さないため）し、
  * モックで置き換えると「親ディレクトリごと作る」挙動を確かめられない。
  */
 
@@ -140,7 +140,7 @@ describe('openScopeFile', () => {
   });
 
   it('作成する内容は Kiro 本体のテンプレートと同じ（空ファイルにしない）', async () => {
-    // 空ファイルは Kiro が fail closed 扱いする（memory.md 3.4）。
+    // 空ファイルは Kiro が fail closed 扱いする。
     const filePath = path.join(tempDir, 'permissions.yaml');
 
     await openScopeFile(scopeNode(filePath, false));

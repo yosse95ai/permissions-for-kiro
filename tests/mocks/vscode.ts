@@ -5,7 +5,7 @@
  * `resolve.alias` でこのファイルに差し替える。必要になった API をその都度追加する。
  *
  * なお `tsc` は alias を知らないため、テストコード側の型は本物の `@types/vscode` で
- * 検査される。モックが公式型に適合していない箇所は型エラーとして現れる（memory.md 4.2 の ThemeColor の項）。
+ * 検査される。モックが公式型に適合していない箇所は型エラーとして現れる。
  */
 
 export enum TreeItemCollapsibleState {

@@ -41,7 +41,7 @@ export async function revealLocation(target: RevealTarget): Promise<void> {
 /**
  * スコープ行のペンシルから呼ばれる。該当ファイルを開き、無ければ作成してから開く。
  *
- * ルールの追加・削除・変更はしない（Q5）。作成だけが唯一の書き込み操作。
+ * ルールの追加・削除・変更はしない（ファイルを編集するのは利用者）。作成だけが唯一の書き込み操作。
  */
 export async function openScopeFile(node: TreeNode | undefined): Promise<void> {
   if (node?.kind !== 'scope') {

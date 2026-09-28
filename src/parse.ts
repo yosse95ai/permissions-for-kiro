@@ -12,7 +12,7 @@ export interface MatchPattern {
 /**
  * `match` の書き方。
  *
- * **Kiro は文字列の配列以外を fatal 扱いする**（memory.md 3.4）。`scalar`（`match: "npm test"`）も
+ * **Kiro は文字列の配列以外を fatal 扱いする**。`scalar`（`match: "npm test"`）も
  * 含まれる点に注意。判定は `validate.ts` が行うので、ここでは形の事実だけを記録する。
  */
 export type MatchShape = 'omitted' | 'list' | 'scalar' | 'other';
@@ -23,7 +23,7 @@ export type TopLevelShape = 'mapping' | 'empty' | 'other';
 /** `rules` キーの状態。**`ok` 以外は Kiro では fatal。** */
 export type RulesKeyState = 'ok' | 'missing' | 'not-a-list';
 
-/** Kiro がルールに認めるキー。**これ以外が 1 つでもあると fatal**（memory.md 3.4） */
+/** Kiro がルールに認めるキー。**これ以外が 1 つでもあると fatal** */
 export const KNOWN_RULE_FIELDS: readonly string[] = ['capability', 'effect', 'match', 'exclude'];
 
 /** `match` / `exclude` の読み取り結果。 */
@@ -192,7 +192,7 @@ function emptyResult(overrides: Partial<ParseResult> = {}): ParseResult {
  * 保持するため `parseDocument` + `LineCounter` を使う。
  *
  * **この関数は Kiro の規則を判定しない。** 形の事実だけを記録し、妥当性の判定は
- * `validate.ts` に任せる（memory.md 3.4 の検証仕様に対応させるため）。
+ * `validate.ts` に任せる（Kiro の検証仕様が変わったときに、直すファイルを 1 つにするため）。
  */
 export function parsePermissions(text: string): ParseResult {
   const lineCounter = new LineCounter();

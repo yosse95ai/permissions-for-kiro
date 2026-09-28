@@ -54,10 +54,9 @@ export function createDebouncer(callback: () => void, delayMs: number = DEBOUNCE
  * - `~/.kiro/settings/permissions.{yaml,json}`
  * - `~/.kiro/workspace-roots/<hash>/permissions.{yaml,json}`
  *
- * **パスの比較は `normalizeRoot()` を通す**（Q40 / Q45）。`filePath` には
+ * **パスの比較は `normalizeRoot()` を通す**。`filePath` には
  * `document.uri.fsPath` が渡るが、Windows ではドライブレターが小文字に落ちる一方
- * `os.homedir()` は大文字を返すため、素の文字列比較は必ず外れる（memory.md 4.2 の
- * `Uri.fsPath` の項）。
+ * `os.homedir()` は大文字を返すため、素の文字列比較は必ず外れる。
  *
  * @param platform 判定に使うプラットフォーム。テストで Windows の挙動を検証するために差し替える
  */

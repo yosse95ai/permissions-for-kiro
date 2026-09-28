@@ -132,7 +132,7 @@ describe('ルール行', () => {
     expect(item.command).toBeUndefined();
   });
 
-  it('match が 1 件のルールも折りたたみになる（ツリー形式に統一。Q36）', () => {
+  it('match が 1 件のルールも折りたたみになる（ツリー形式に統一）', () => {
     const target = rule({
       effect: 'deny',
       line: 26,
@@ -155,7 +155,7 @@ describe('ルール行', () => {
     });
 
     expect(item.collapsibleState).toBe(TreeItemCollapsibleState.None);
-    // パターン行を持たないため、この行にジャンプを割り当てないと飛ぶ手段が無くなる（Q36）。
+    // パターン行を持たないため、この行にジャンプを割り当てないと飛ぶ手段が無くなる。
     expect(item.command?.arguments).toEqual([
       { filePath: '/home/test/.kiro/settings/permissions.yaml', line: 22 },
     ]);
@@ -226,7 +226,7 @@ describe('パターン行', () => {
       pattern: { pattern: 'npm run build', line: 8 },
     });
 
-    // `match` と `exclude` で名前空間を分ける（Q35）。
+    // `match` と `exclude` で名前空間を分ける。
     expect(item.id).toBe('user/0/match/5');
   });
 });
@@ -268,7 +268,7 @@ describe('子ノードの構成', () => {
   });
 
   it('パースエラーのラベルは 1 行目だけにし、tooltip に全文を出す', async () => {
-    // `yaml` パッケージが実際に返す複数行のメッセージ（Q37 = D）。
+    // `yaml` パッケージが実際に返す複数行のメッセージ。
     const message = [
       'Sequence item without - indicator at line 3, column 1:',
       '',
@@ -474,7 +474,7 @@ describe('スコープ行の tooltip', () => {
     expect(tooltip).toContain('0654434d556baf69');
   });
 
-  it('ワークスペースはフォルダのパスを載せる（Q48）', () => {
+  it('ワークスペースはフォルダのパスを載せる', () => {
     // ラベルは `folder.name` なので、マルチルートで同名フォルダを開くと行が区別できない。
     const item = provider.getTreeItem({ kind: 'scope', scope: missingWorkspaceScope() });
 

@@ -13,7 +13,7 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     environment: 'node',
     coverage: {
-      // Bun ランタイムでは v8 provider が壊れるため istanbul を使う（plan.md 0.5-5）。
+      // Bun ランタイムでは v8 provider が壊れるため istanbul を使う。
       provider: 'istanbul',
       include: ['src/**/*.ts'],
       reporter: ['text', 'lcov'],

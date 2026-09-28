@@ -5,7 +5,7 @@ import { type ScopeValidation, validatePermissions } from '../src/validate';
  * テスト用のフィクスチャ。
  *
  * `PermissionRule` と `ParseResult` は Kiro の検証仕様を判定するためのフィールドを多く持つ
- * ので（memory.md 3.4）、既定値をここに集約して各テストでは関心のあるフィールドだけ上書きする。
+ * ので、既定値をここに集約して各テストでは関心のあるフィールドだけ上書きする。
  */
 
 export function emptyPatternList(): PatternList {

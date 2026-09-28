@@ -128,7 +128,7 @@ describe('ruleAccessibilityLabel', () => {
 });
 
 describe('hasPatternChildren', () => {
-  it('パターンが 1 件でも子を持つ（ツリー形式に統一する。Q36）', () => {
+  it('パターンが 1 件でも子を持つ（ツリー形式に統一する）', () => {
     expect(
       hasPatternChildren(rule({ matchShape: 'list', matches: [{ pattern: 'a', line: 1 }] })),
     ).toBe(true);
@@ -330,7 +330,7 @@ describe('formatParseError', () => {
   });
 
   // `yaml` パッケージが実際に返す形。説明文 + スニペット + キャレットの複数行で、
-  // 末尾に `Line N:` と重複する位置情報が付く（Q37 = D）。
+  // 末尾に `Line N:` と重複する位置情報が付く。
   const YAML_MESSAGE = [
     'Sequence item without - indicator at line 3, column 1:',
     '',

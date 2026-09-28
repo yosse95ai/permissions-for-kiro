@@ -43,7 +43,7 @@ describe('activate', () => {
   it('ファイル監視を始める', () => {
     activate(context());
 
-    // `~/.kiro/settings` と `~/.kiro/workspace-roots` の 2 つ（memory.md 4.2 の watcher の項）。
+    // `~/.kiro/settings` と `~/.kiro/workspace-roots` の 2 つ。
     expect(createdWatchers).toHaveLength(2);
   });
 
