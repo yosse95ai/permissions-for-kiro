@@ -87,17 +87,15 @@ describe('completionCandidates: キー', () => {
     });
   });
 
-  it('`match` / `exclude` は、ルールの capability にひな型があるときだけ確定後に候補を開く', () => {
-    const opened = (capability: string | undefined): string[] =>
-      completionCandidates(ruleKey([], false, capability), 'yaml')
-        .filter((c) => c.triggerSuggest)
-        .map((c) => c.label);
-    expect(opened('shell')).toEqual(['capability', 'effect', 'match', 'exclude']);
-    expect(opened('fs_read')).toEqual(['capability', 'effect', 'match', 'exclude']);
-    expect(opened('web_fetch')).toEqual(['capability', 'effect']);
-    expect(opened(undefined)).toEqual(['capability', 'effect']);
-    const json = completionCandidates(ruleKey([], false, 'mcp'), 'json');
-    expect(json.filter((c) => c.triggerSuggest).map((c) => c.label)).toContain('match');
+  it('`match` / `exclude` は確定後に候補を開かない（パターンは候補として出さない）', () => {
+    for (const capability of ['shell', 'fs_read', 'mcp', 'web_fetch', undefined]) {
+      for (const format of ['yaml', 'json'] as const) {
+        const opened = completionCandidates(ruleKey([], false, capability), format)
+          .filter((c) => c.triggerSuggest)
+          .map((c) => c.label);
+        expect(opened).toEqual(['capability', 'effect']);
+      }
+    }
   });
 
   it('JSON は値の側までスニペットで入れる', () => {
@@ -225,64 +223,49 @@ describe('completionCandidates: effect の値', () => {
   });
 });
 
-describe('completionCandidates: パターンのひな型', () => {
-  it('ドキュメントにパターンの形がある capability だけに出す', () => {
-    const withTemplates = KNOWN_CAPABILITIES.filter(
-      (capability) => completionCandidates(pattern(capability), 'yaml').length > 0,
+/** ルールの capability を決めたときの `match` / `exclude` の説明文。 */
+const listDocs = (capability: string | undefined): (string | undefined)[] =>
+  completionCandidates(ruleKey(['capability'], false, capability), 'yaml')
+    .filter((c) => c.label === 'match' || c.label === 'exclude')
+    .map((c) => c.documentation);
+
+describe('completionCandidates: パターン', () => {
+  it('パターンの位置では、どの capability でも候補を出さない', () => {
+    for (const capability of [...KNOWN_CAPABILITIES, 'network', undefined]) {
+      expect(completionCandidates(pattern(capability), 'yaml')).toEqual([]);
+      expect(completionCandidates(pattern(capability), 'json')).toEqual([]);
+    }
+  });
+
+  it('`match` / `exclude` の説明に、capability に合った書き方と例を載せる', () => {
+    const [match, exclude] = listDocs('shell');
+    expect(match).toContain('`*` matches any characters.');
+    expect(match).toContain('Examples for `shell`: `git *`, `npm *`, `rm -rf *`');
+    expect(exclude).toContain('Examples for `shell`:');
+
+    expect(listDocs('fs_write')[0]).toContain(
+      'Examples for `fs_write`: `src/**`, `**/.env`, `**/*.pem`',
     );
-    expect(withTemplates).toEqual(['filesystem', 'fs_read', 'fs_write', 'shell', 'mcp']);
+    expect(listDocs('mcp')[0]).toContain(
+      'Examples for `mcp`: `my-server/*`, `my-server/dangerous-tool`',
+    );
   });
 
-  it('capability が未記入か未知なら出さない', () => {
-    expect(completionCandidates(pattern(undefined), 'yaml')).toEqual([]);
-    expect(completionCandidates(pattern('network'), 'yaml')).toEqual([]);
-  });
-
-  it('一覧には既定値を埋めた、引用符のない形を見せる', () => {
-    expect(labels(completionCandidates(pattern('fs_read'), 'yaml'))).toEqual([
-      'src/**',
-      '**/.env',
-      '**/*.pem',
-    ]);
-    expect(labels(completionCandidates(pattern('shell'), 'yaml'))).toEqual(['git *', 'npm test']);
-    expect(labels(completionCandidates(pattern('mcp'), 'yaml'))).toEqual([
-      'server/*',
-      'server/tool',
-    ]);
-  });
-
-  it('YAML に入れても、Kiro と同じ yaml.parse で文字列として読める（`*` で始まってもエイリアスにならない）', () => {
-    for (const capability of ['fs_read', 'shell', 'mcp']) {
-      for (const candidate of completionCandidates(pattern(capability), 'yaml')) {
-        const text = [
-          'rules:',
-          `  - capability: ${capability}`,
-          '    effect: deny',
-          '    match:',
-          `      - ${expand(candidate)}`,
-        ].join('\n');
-        let parsed: unknown;
-        expect(() => {
-          parsed = parseYaml(text);
-        }).not.toThrow();
-        expect(parsed).toEqual({
-          rules: [{ capability, effect: 'deny', match: [candidate.label] }],
-        });
+  it('例のない capability や未記入のときは、共通の説明だけにする', () => {
+    for (const capability of ['all', 'web_fetch', 'network', undefined]) {
+      for (const doc of listDocs(capability)) {
+        expect(doc).not.toContain('Examples for');
+        expect(doc).toContain('Patterns the rule');
       }
     }
   });
 
-  it('JSON の配列に入れても JSON.parse できる', () => {
-    for (const candidate of completionCandidates(pattern('fs_write'), 'json')) {
-      const text = `{"rules": [{"capability": "fs_write", "effect": "deny", "match": [${expand(candidate)}]}]}`;
-      expect(JSON.parse(text)).toMatchObject({ rules: [{ match: [candidate.label] }] });
-    }
-  });
-
-  it('スニペットとして入れ、書き方の説明文を付ける', () => {
-    for (const candidate of completionCandidates(pattern('shell'), 'yaml')) {
-      expect(candidate).toMatchObject({ kind: 'pattern', snippet: true, triggerSuggest: false });
-      expect(candidate.documentation).toBeDefined();
+  it('例は、YAML で引用符を付けて書けば Kiro と同じ yaml.parse で文字列として読める', () => {
+    for (const example of ['src/**', '**/.env', '**/*.pem', 'git *', 'rm -rf *', 'my-server/*']) {
+      const text = ['rules:', '  - capability: shell', '    match:', `      - "${example}"`].join(
+        '\n',
+      );
+      expect(parseYaml(text)).toEqual({ rules: [{ capability: 'shell', match: [example] }] });
     }
   });
 });

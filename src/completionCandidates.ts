@@ -22,7 +22,7 @@ import { KNOWN_CAPABILITIES, VALID_EFFECTS } from './validate';
  */
 
 /** 候補の種類。`completion.ts` が `CompletionItemKind` に変換する。 */
-export type CandidateKind = 'key' | 'value' | 'pattern';
+export type CandidateKind = 'key' | 'value';
 
 export interface Candidate {
   label: string;
@@ -50,7 +50,16 @@ function sortKey(index: number): string {
   return String(index).padStart(2, '0');
 }
 
-function keyDescriptions(): Record<string, Description> {
+/**
+ * キーの説明文。
+ *
+ * @param capability 同じルールの capability。`match` / `exclude` の説明に、その capability の
+ *   パターンの書き方と例を足す
+ */
+function keyDescriptions(capability?: string): Record<string, Description> {
+  const patterns = patternHelp(capability);
+  const withPatterns = (text: string): string =>
+    patterns === undefined ? text : `${text}\n\n${patterns}`;
   return {
     rules: {
       detail: vscode.l10n.t('list of rules'),
@@ -72,13 +81,17 @@ function keyDescriptions(): Record<string, Description> {
     },
     match: {
       detail: vscode.l10n.t('optional'),
-      documentation: vscode.l10n.t(
-        'Patterns the rule applies to. Must be a list of strings. Without it, the rule applies to everything in the capability.',
+      documentation: withPatterns(
+        vscode.l10n.t(
+          'Patterns the rule applies to. Must be a list of strings. Without it, the rule applies to everything in the capability.',
+        ),
       ),
     },
     exclude: {
       detail: vscode.l10n.t('optional'),
-      documentation: vscode.l10n.t('Patterns the rule must not apply to. Same format as `match`.'),
+      documentation: withPatterns(
+        vscode.l10n.t('Patterns the rule must not apply to. Same format as `match`.'),
+      ),
     },
   };
 }
@@ -147,57 +160,62 @@ function effectDescriptions(): Record<string, Description> {
 /** effect を並べる順。優先順位（`deny > ask > allow`）の順にする。 */
 const EFFECT_ORDER: readonly string[] = ['deny', 'ask', 'allow'];
 
-interface PatternTemplates {
-  detail: string;
-  documentation: string;
-  /** スニペット。YAML でも引用符で囲む（`*` で始まる値は、引用符がないとエイリアスになる） */
-  templates: readonly string[];
+interface PatternExamples {
+  /** パターンの書き方 */
+  syntax: string;
+  /** Kiro のドキュメントの例から取ったパターン */
+  examples: readonly string[];
 }
 
 /**
- * capability ごとのパターンのひな型。
+ * capability ごとのパターンの書き方と例。
+ *
+ * パターンは値の候補としては出さない（具体的な値が一覧に並ぶと、推奨の設定のように見える
+ * ため）。`match` / `exclude` のキーの説明文とホバーに、例として載せる。
  *
  * ドキュメントにパターンの形が示されている capability（ファイル系・`shell`・`mcp`）だけ。
  * `all` / `builtin` は含まれる capability ごとに意味が違うので、1 つに決められない。
  */
-function patternTemplates(capability: string): PatternTemplates | undefined {
+function patternExamples(capability: string | undefined): PatternExamples | undefined {
   switch (capability) {
     case 'fs_read':
     case 'fs_write':
     case 'filesystem':
       return {
-        detail: vscode.l10n.t('path pattern'),
-        documentation: vscode.l10n.t(
+        syntax: vscode.l10n.t(
           '`*` matches within one path segment, `**` across segments. {0} and {1} are supported. A pattern without wildcards also matches everything under it.',
           '`{a,b}`',
           '`[abc]`',
         ),
-        templates: ['"${1:src}/**"', '"**/${1:.env}"', '"**/*.${1:pem}"'],
+        examples: ['src/**', '**/.env', '**/*.pem'],
       };
     case 'shell':
       return {
-        detail: vscode.l10n.t('command pattern'),
-        documentation: vscode.l10n.t(
+        syntax: vscode.l10n.t(
           '`*` matches any characters. `**`, `?`, and character classes are not supported.',
         ),
-        templates: ['"${1:git} *"', '"${1:npm test}"'],
+        examples: ['git *', 'npm *', 'rm -rf *'],
       };
     case 'mcp':
       return {
-        detail: vscode.l10n.t('MCP tool pattern'),
-        documentation: vscode.l10n.t(
+        syntax: vscode.l10n.t(
           '`server/tool`. `*` matches any characters. `**`, `?`, and character classes are not supported.',
         ),
-        templates: ['"${1:server}/*"', '"${1:server}/${2:tool}"'],
+        examples: ['my-server/*', 'my-server/dangerous-tool'],
       };
     default:
       return undefined;
   }
 }
 
-/** スニペットのプレースホルダを既定値に置き換え、引用符を外した文字列（一覧の表示用）。 */
-function templateLabel(template: string): string {
-  return template.replace(/\$\{\d+:([^}]*)\}/g, '$1').replace(/^"(.*)"$/, '$1');
+/** `match` / `exclude` の説明に足す、書き方と例の段落。例のない capability では `undefined`。 */
+function patternHelp(capability: string | undefined): string | undefined {
+  const patterns = patternExamples(capability);
+  if (patterns === undefined) {
+    return undefined;
+  }
+  const examples = patterns.examples.map((example) => `\`${example}\``).join(', ');
+  return `${patterns.syntax}\n\n${vscode.l10n.t('Examples for {0}: {1}', `\`${capability}\``, examples)}`;
 }
 
 /**
@@ -244,18 +262,11 @@ function keyInsertText(
  * キーを確定したあとに、続けて値の候補を開くか。
  *
  * 値の候補があるキーだけ開く。`rules` は最初のルールの capability の値まで入れるので開く。
- * `match` / `exclude` は、そのルールの capability にパターンのひな型があるときだけ開く
- * （ないときに開くと、ファイル内の単語の候補しか出ない）。キーの名前だけを直しているときは、
- * 値はもう書かれているので開かない。
+ * `match` / `exclude` の値（パターン）は候補を出さないので開かない。キーの名前だけを直して
+ * いるときは、値はもう書かれているので開かない。
  */
-function opensValues(key: string, colonAfter: boolean, capability: string | undefined): boolean {
-  if (colonAfter) {
-    return false;
-  }
-  if (key === 'match' || key === 'exclude') {
-    return capability !== undefined && patternTemplates(capability) !== undefined;
-  }
-  return key === 'rules' || key === 'capability' || key === 'effect';
+function opensValues(key: string, colonAfter: boolean): boolean {
+  return !colonAfter && (key === 'rules' || key === 'capability' || key === 'effect');
 }
 
 function keyCandidates(
@@ -265,7 +276,7 @@ function keyCandidates(
   colonAfter: boolean,
   capability?: string,
 ): Candidate[] {
-  const descriptions = keyDescriptions();
+  const descriptions = keyDescriptions(capability);
   return keys
     .filter((key) => !present.includes(key))
     .map((key) => {
@@ -276,7 +287,7 @@ function keyCandidates(
         insertText,
         snippet,
         sortText: sortKey(keys.indexOf(key)),
-        triggerSuggest: opensValues(key, colonAfter, capability),
+        triggerSuggest: opensValues(key, colonAfter),
       };
       return Object.assign(candidate, descriptions[key]);
     });
@@ -329,24 +340,9 @@ export function completionCandidates(site: CompletionSite, format: PermissionsFo
       return valueCandidates(ordered, effectDescriptions(), format);
     }
 
-    default: {
-      // 残りは `pattern` だけ。
-      const patterns =
-        site.capability === undefined ? undefined : patternTemplates(site.capability);
-      if (patterns === undefined) {
-        return [];
-      }
-      return patterns.templates.map((template, index) => ({
-        label: templateLabel(template),
-        kind: 'pattern' as const,
-        detail: patterns.detail,
-        documentation: patterns.documentation,
-        insertText: template,
-        snippet: true,
-        sortText: sortKey(index),
-        triggerSuggest: false,
-      }));
-    }
+    default:
+      // `pattern`。パターンは候補として出さず、`match` / `exclude` の説明に例を載せる。
+      return [];
   }
 }
 
@@ -372,7 +368,7 @@ export function hoverMarkdown(site: CompletionSite, word: string): string | unde
       known = ['rules'];
       break;
     case 'rule-key':
-      descriptions = keyDescriptions();
+      descriptions = keyDescriptions(site.capability);
       known = KNOWN_RULE_FIELDS;
       break;
     case 'capability-value':

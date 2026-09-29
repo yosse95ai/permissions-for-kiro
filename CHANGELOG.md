@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Completion while editing `permissions.yaml` and `permissions.json`: rule fields, capability names, and effect values, plus pattern templates for file, shell, and MCP rules, each with a short description
+- Completion while editing `permissions.yaml` and `permissions.json`: rule fields, capability names, and effect values, each with a short description. The description of `match` and `exclude` shows how to write patterns for file, shell, and MCP rules, with examples
 - Hovering a rule field, capability, or effect in those files shows the same description, with a link to the Kiro documentation
 
 ## 0.1.1 - 2026-08-13

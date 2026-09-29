@@ -59,11 +59,9 @@
   "Asks you before running. Wins over `allow`.": "実行前に確認します。`allow` より優先されます。",
   "proceed silently": "確認せずに実行",
   "Runs without asking, unless a `deny` or `ask` rule also matches.": "確認せずに実行します。ただし `deny` や `ask` のルールにも一致する場合は、そちらが優先されます。",
-  "path pattern": "パスのパターン",
   "`*` matches within one path segment, `**` across segments. {0} and {1} are supported. A pattern without wildcards also matches everything under it.": "`*` はパスの 1 階層の中で、`**` は階層をまたいで一致します。{0} と {1} も使えます。ワイルドカードのないパターンは、その下にあるものすべてにも一致します。",
-  "command pattern": "コマンドのパターン",
   "`*` matches any characters. `**`, `?`, and character classes are not supported.": "`*` は任意の文字列に一致します。`**`、`?`、文字クラスは使えません。",
-  "MCP tool pattern": "MCP ツールのパターン",
   "`server/tool`. `*` matches any characters. `**`, `?`, and character classes are not supported.": "`server/tool` の形で書きます。`*` は任意の文字列に一致します。`**`、`?`、文字クラスは使えません。",
-  "Kiro documentation: {0}": "Kiro のドキュメント: {0}"
+  "Kiro documentation: {0}": "Kiro のドキュメント: {0}",
+  "Examples for {0}: {1}": "{0} の例: {1}"
 }

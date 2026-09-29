@@ -41,7 +41,7 @@ export type CompletionSite =
       /** 同じルールにすでに書かれているキー（カーソルの行は除く） */
       present: readonly string[];
       colonAfter: boolean;
-      /** 同じルールの `capability` の値。`match` / `exclude` の確定後にひな型を開くかに使う */
+      /** 同じルールの `capability` の値。`match` / `exclude` の説明に載せるパターンの例を選ぶ */
       capability: string | undefined;
     }
   | { kind: 'capability-value' }

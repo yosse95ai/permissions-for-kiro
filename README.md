@@ -39,7 +39,7 @@ More importantly, it shows **the rules that are actually in effect** rather than
 - **Warns when the whole configuration fails to load** (`fail closed`), in which case no rule applies at all
 - Reports YAML and JSON parse errors with the line that caused them
 - Supports `permissions.json` as well as `permissions.yaml`, and multi-root workspaces
-- **Completion while editing the file**: rule fields, capability names, effect values, and pattern templates for file, shell, and MCP rules, each with a short description
+- **Completion while editing the file**: rule fields, capability names, and effect values, each with a short description. `match` and `exclude` come with pattern examples for file, shell, and MCP rules
 - Hover a rule field, capability, or effect to see the same description
 
 ## Installation
@@ -59,7 +59,7 @@ Open the Kiro view container in the activity bar. The `PERMISSIONS` view appears
 
 The view is read only. Add, change, and remove rules by editing the file, which you can open from the pencil icon or by clicking any row. For the rule syntax, see [Permissions](https://kiro.dev/docs/permissions/) in the Kiro documentation.
 
-While you edit the file, the editor suggests rule fields, capability names, effect values, and pattern templates. The list also opens after you press Tab or Enter to reach the column where the next field goes. Hover a field, capability, or effect you have already written to see its description and a link to the Kiro documentation. The extension only suggests. Nothing changes in the file until you accept a suggestion.
+While you edit the file, the editor suggests rule fields, capability names, and effect values. Patterns are not suggested; the description of `match` and `exclude` shows examples for the rule's capability instead. The list also opens after you press Tab or Enter to reach the column where the next field goes. Hover a field, capability, or effect you have already written to see its description and a link to the Kiro documentation. The extension only suggests. Nothing changes in the file until you accept a suggestion.
 
 Kiro's Autocomplete can show inline suggestions in these files too, and they are not always valid rules. To turn them off, run `Kiro: Toggle Autocomplete Enabled` from the Command Palette. This turns off Autocomplete in every file, not only here.
 

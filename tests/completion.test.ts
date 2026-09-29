@@ -202,11 +202,13 @@ describe('completionItems', () => {
     expect(capability!.insertText).toMatchObject({ value: '"capability": "$1"' });
   });
 
-  it('パターンのひな型は Snippet の種類で、スニペットとして入れる', () => {
-    const items = itemsAt('yaml', ['rules:', '  - capability: shell', '    match:', '      - |']);
-    expect(labels(items)).toEqual(['git *', 'npm test']);
-    expect(items![0]!.kind).toBe(CompletionItemKind.Snippet);
-    expect(items![0]!.insertText).toMatchObject({ value: '"${1:git} *"' });
+  it('パターンの位置では候補を出さない（単語ベースの候補に任せる）', () => {
+    expect(
+      itemsAt('yaml', ['rules:', '  - capability: shell', '    match:', '      - |']),
+    ).toBeUndefined();
+    expect(
+      itemsAt('json', ['{"rules": [{"capability": "shell", "match": ["|"]}]}']),
+    ).toBeUndefined();
   });
 
   it('範囲が引用符で始まるときは、絞り込みの文字列にも引用符を付ける', () => {
@@ -444,6 +446,17 @@ describe('hoverAt', () => {
     expect(hoverText(hoverOf('yaml', ['rules:', '  - capability: con|text']))).toBe(
       ['**context**', DOCS_LINK].join('\n\n'),
     );
+  });
+
+  it('`match` のホバーに、ルールの capability に合った例を出す', () => {
+    const text = hoverText(
+      hoverOf('yaml', ['rules:', '  - capability: shell', '    mat|ch:', '      - "git *"']),
+    );
+    expect(text).toContain('**match** — optional');
+    expect(text).toContain('Examples for `shell`: `git *`, `npm *`, `rm -rf *`');
+    expect(
+      hoverText(hoverOf('json', ['{"rules": [{"capability": "mcp", "exc|lude": []}]}'])),
+    ).toContain('Examples for `mcp`:');
   });
 
   it('キーと effect の値にも出す', () => {

@@ -47,7 +47,6 @@ const TRIGGER_CHARACTERS: Record<PermissionsFormat, string> = {
 const ITEM_KINDS: Record<CandidateKind, vscode.CompletionItemKind> = {
   key: vscode.CompletionItemKind.Property,
   value: vscode.CompletionItemKind.EnumMember,
-  pattern: vscode.CompletionItemKind.Snippet,
 };
 
 /** 候補を確定したあとに、続けて値の候補を開くコマンド。 */
