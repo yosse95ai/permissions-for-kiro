@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/yosse95ai/permissions-for-kiro/actions/workflows/ci.yml/badge.svg)](https://github.com/yosse95ai/permissions-for-kiro/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Built with Kiro][kiro-badge]][kiro]
+[![Open VSX downloads][downloads-badge]][open-vsx]
 
 **English** | [日本語](./README.ja.md)
 
@@ -59,7 +61,7 @@ Open the Kiro view container in the activity bar. The `PERMISSIONS` view appears
 
 The view is read only. Add, change, and remove rules by editing the file, which you can open from the pencil icon or by clicking any row. For the rule syntax, see [Permissions](https://kiro.dev/docs/permissions/) in the Kiro documentation.
 
-While you edit the file, the editor suggests rule fields, capability names, and effect values. Patterns are not suggested; the description of `match` and `exclude` shows examples for the rule's capability instead. The list also opens after you press Tab or Enter to reach the column where the next field goes. Hover a field, capability, or effect you have already written to see its description and a link to the Kiro documentation. The extension only suggests. Nothing changes in the file until you accept a suggestion.
+While you edit the file, the editor suggests rule fields, capability names, and effect values. Patterns are not suggested; the description of `match` and `exclude` shows examples for the rule's capability instead. The list also opens after you press Tab or Enter to reach the column where the next field goes. Picking `rules` inserts the first rule up to `- capability: `, and picking `match` or `exclude` inserts the first `- ` on the next line. Hover a field, capability, or effect you have already written to see its description and a link to the Kiro documentation. The extension only suggests. Nothing changes in the file until you accept a suggestion.
 
 Kiro's Autocomplete can show inline suggestions in these files too, and they are not always valid rules. To turn them off, run `Kiro: Toggle Autocomplete Enabled` from the Command Palette. This turns off Autocomplete in every file, not only here.
 
@@ -68,14 +70,14 @@ Kiro's Autocomplete can show inline suggestions in these files too, and they are
 | Item   | Support                                                                                      |
 | ------ | -------------------------------------------------------------------------------------------- |
 | Editor | **Kiro only.** The view relies on Kiro's permission model and does not work in plain VS Code |
-| Kiro   | Verified on 1.0.288 and later                                                                |
+| Kiro   | Verified on 1.0.288 and later. Completion and hover were verified on 1.1.14                  |
 | OS     | macOS and Windows, both verified on real machines                                            |
 
 ## How it works
 
-The extension reproduces two things from Kiro itself: the way a workspace path is normalized and hashed to locate the settings directory, and the way rules are validated. That is what lets it show the rules actually in effect instead of the raw file.
+The extension reproduces two things from Kiro itself: the way a workspace path is normalized and hashed to locate the settings directory, and the way rules are validated. That is what lets it show the rules actually in effect instead of the raw file. Completion draws its capability names, rule fields, and effects from the same copy of Kiro's validation rules.
 
-Because both behaviours mirror Kiro's internals, a future change in Kiro could make the view diverge from reality. If you notice a mismatch, please [open an issue](https://github.com/yosse95ai/permissions-for-kiro/issues).
+Because both behaviours mirror Kiro's internals, a future change in Kiro could make the view, and the completion suggestions, diverge from reality. If you notice a mismatch, please [open an issue](https://github.com/yosse95ai/permissions-for-kiro/issues).
 
 ## Development
 
@@ -106,3 +108,8 @@ For anything security related, use [private reporting](./SECURITY.md) instead of
 ## Trademarks
 
 Kiro and AWS are trademarks of Amazon.com, Inc. or its affiliates. This extension is not affiliated with, nor endorsed by, Amazon Web Services, Inc.
+
+[kiro]: https://kiro.dev/
+[kiro-badge]: https://img.shields.io/badge/Built_with-Kiro-8A3FFC?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyNCI+PHBhdGggZD0iTTMuOCAxOC41N0MxLjMyIDI0LjA2IDYuNiAyNS40MyAxMC40OSAyMi4yMkMxMS42MyAyNS44MiAxNS45MyAyMy4xNCAxNy40NyAyMC4zNEMyMC44NiAxNC4xOSAxOS40OSA3LjkxIDE5LjE0IDYuNjJDMTYuNzIgLTIuMjEgNC42NyAtMi4yMiAyLjYgNi42NkMyLjExIDguMjIgMi4xIDkuOTkgMS44MyAxMS44MkMxLjY5IDEyLjc1IDEuNTkgMTMuMzQgMS4yMyAxNC4zMUMxLjAzIDE0Ljg3IDAuNzUgMTUuMzcgMC4zIDE2LjIxQy0wLjM5IDE3LjUxIC0wLjEgMjAuMDIgMy40NiAxOC43MlYxOC43MkwzLjggMTguNTdaIiBmaWxsPSJ3aGl0ZSIvPjxwYXRoIGQ9Ik0xMC45NiAxMC40NEM5Ljk3IDEwLjQ0IDkuODIgOS4yNiA5LjgyIDguNTVDOS44MiA3LjkyIDkuOTQgNy40MSAxMC4xNSA3LjA5QzEwLjM0IDYuODEgMTAuNjIgNi42NyAxMC45NiA2LjY3QzExLjMxIDYuNjcgMTEuNiA2LjgxIDExLjgxIDcuMUMxMi4wNSA3LjQzIDEyLjE4IDcuOTMgMTIuMTggOC41NUMxMi4xOCA5Ljc0IDExLjcyIDEwLjQ0IDEwLjk2IDEwLjQ0SDEwLjk2WiIgZmlsbD0iYmxhY2siLz48cGF0aCBkPSJNMTUuMDMgMTAuNDRDMTQuMDQgMTAuNDQgMTMuODkgOS4yNiAxMy44OSA4LjU1QzEzLjg5IDcuOTIgMTQuMDEgNy40MSAxNC4yMiA3LjA5QzE0LjQxIDYuODEgMTQuNjkgNi42NyAxNS4wMyA2LjY3QzE1LjM4IDYuNjcgMTUuNjcgNi44MSAxNS44OCA3LjFDMTYuMTIgNy40MyAxNi4yNSA3LjkzIDE2LjI1IDguNTVDMTYuMjUgOS43NCAxNS43OSAxMC40NCAxNS4wMyAxMC40NEgxNS4wM1oiIGZpbGw9ImJsYWNrIi8+PC9zdmc+Cg==
+[open-vsx]: https://open-vsx.org/extension/yosse95ai/permissions-for-kiro
+[downloads-badge]: https://img.shields.io/open-vsx/dt/yosse95ai/permissions-for-kiro?label=Open%20VSX%20downloads

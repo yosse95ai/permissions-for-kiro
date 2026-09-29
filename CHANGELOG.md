@@ -4,12 +4,22 @@ All notable changes to this extension are recorded here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). **While the version is below `1.0.0`, expect the view to keep moving.** The extension reproduces internals of Kiro itself and has to follow them as they change.
 
-## Unreleased
+## 0.2.0 - 2026-09-28
 
 ### Added
 
-- Completion while editing `permissions.yaml` and `permissions.json`: rule fields, capability names, and effect values, each with a short description. The description of `match` and `exclude` shows how to write patterns for file, shell, and MCP rules, with examples
-- Hovering a rule field, capability, or effect in those files shows the same description, with a link to the Kiro documentation
+- **Completion while editing `permissions.yaml` and `permissions.json`.** Rule fields, capability names, and effect values are suggested with a short description. Open either file and start typing; the list opens on the first letter. It also opens by itself in these places:
+  - after `- ` or `capability: ` in YAML, and after `"` in JSON
+  - right after you pick `capability` or `effect`, so you can go straight on to the value
+  - after you press Tab or Enter to reach the column where the next field goes
+
+  To open it anywhere else, use the editor's Trigger Suggest shortcut (<kbd>Ctrl</kbd>+<kbd>Space</kbd>, or <kbd>Cmd</kbd>+<kbd>I</kbd> on macOS).
+
+- **Less typing for lists.** Picking `rules` inserts the first rule up to `- capability: `, and picking `match` or `exclude` inserts the first `- ` on the next line.
+- **Pattern examples.** Patterns are not suggested. Instead, the description of `match` and `exclude` explains how to write patterns for the rule's capability and lists the examples from the Kiro documentation, for file, shell, and MCP rules.
+- **Hover descriptions.** Hover a rule field, capability, or effect you have already written to see the same description, with a link to the Kiro documentation. Unknown capabilities get no hover, which is a hint that Kiro will skip the rule.
+
+Kiro's own Autocomplete may also show inline suggestions in these files, and they are not always valid rules. Run `Kiro: Toggle Autocomplete Enabled` from the Command Palette to turn it off; this applies to every file.
 
 ## 0.1.1 - 2026-08-13
 
