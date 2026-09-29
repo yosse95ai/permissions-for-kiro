@@ -5,7 +5,7 @@
  * `resolve.alias` でこのファイルに差し替える。必要になった API をその都度追加する。
  *
  * なお `tsc` は alias を知らないため、テストコード側の型は本物の `@types/vscode` で
- * 検査される。モックが公式型に適合していない箇所は型エラーとして現れる（memory.md 4.2 の ThemeColor の項）。
+ * 検査される。モックが公式型に適合していない箇所は型エラーとして現れる。
  */
 
 export enum TreeItemCollapsibleState {
@@ -94,6 +94,52 @@ export class Range {
 
 export class Selection extends Range {}
 
+/**
+ * `CompletionItemKind` のうち、この拡張が使う値と、比較に使いそうな値だけ。
+ *
+ * 数値は `@types/vscode` 1.94.0 の定義と同じにしている（アイコンの種類を数値で比べても
+ * 本物とずれないように）。
+ */
+export enum CompletionItemKind {
+  Text = 0,
+  Property = 9,
+  Value = 11,
+  Snippet = 14,
+  EnumMember = 19,
+}
+
+export class Hover {
+  constructor(
+    public contents: MarkdownString,
+    public range?: Range,
+  ) {}
+}
+
+export class SnippetString {
+  constructor(public value: string = '') {}
+}
+
+/**
+ * `CompletionItem` のモック。プロバイダーが設定したプロパティをそのまま持つだけ。
+ *
+ * `range` は本物と同じく、`Range` か `{ inserting, replacing }` のどちらかを受ける。
+ */
+export class CompletionItem {
+  detail?: string;
+  documentation?: string | MarkdownString;
+  sortText?: string;
+  filterText?: string;
+  preselect?: boolean;
+  insertText?: string | SnippetString;
+  range?: Range | { inserting: Range; replacing: Range };
+  command?: Command;
+
+  constructor(
+    public label: string,
+    public kind?: CompletionItemKind,
+  ) {}
+}
+
 export class EventEmitter<T> {
   private readonly listeners: Array<(value: T) => void> = [];
 
@@ -156,6 +202,15 @@ export const createdWatchers: FileSystemWatcherMock[] = [];
 
 const workspaceFoldersEmitter = new EventEmitter<void>();
 const saveEmitter = new EventEmitter<{ uri: Uri }>();
+const changeEmitter = new EventEmitter<unknown>();
+
+/** テストからドキュメントの変更を発火する。中身はテストが組み立てる。 */
+export function fireDidChangeTextDocument(event: unknown): void {
+  changeEmitter.fire(event);
+}
+
+/** `commands.executeCommand` で実行されたコマンドの ID。 */
+export const executedCommands: string[] = [];
 
 export interface DocumentMock {
   uri: Uri;
@@ -226,6 +281,23 @@ export class TreeViewMock {
   }
 }
 
+/**
+ * `registerCompletionItemProvider` で登録されたプロバイダー。
+ *
+ * selector とトリガー文字を検証できるように、引数をそのまま記録する。dispose されると
+ * 一覧から取り除く（`registeredCommands` と同じく、解放漏れをテストで検出するため）。
+ */
+export interface RegisteredCompletionProvider {
+  selector: unknown;
+  provider: unknown;
+  triggerCharacters: string[];
+}
+
+export const registeredCompletionProviders: RegisteredCompletionProvider[] = [];
+
+/** `registerHoverProvider` で登録されたプロバイダー。dispose で一覧から取り除く。 */
+export const registeredHoverProviders: Array<{ selector: unknown; provider: unknown }> = [];
+
 /** テストからワークスペースフォルダの変更を発火する。 */
 export function fireWorkspaceFoldersChange(): void {
   workspaceFoldersEmitter.fire();
@@ -247,6 +319,10 @@ export function resetMocks(): void {
   showTextDocumentOptions.length = 0;
   registeredCommands.clear();
   createdTreeViews.length = 0;
+  registeredCompletionProviders.length = 0;
+  registeredHoverProviders.length = 0;
+  executedCommands.length = 0;
+  window.activeTextEditor = undefined;
 }
 
 /** テストから差し替えられるようにミュータブルにしている。 */
@@ -265,9 +341,12 @@ export const workspace = {
   },
   onDidChangeWorkspaceFolders: workspaceFoldersEmitter.event,
   onDidSaveTextDocument: saveEmitter.event,
+  onDidChangeTextDocument: changeEmitter.event,
 };
 
 export const window = {
+  /** テストから差し替える。`{ document, selections }` だけを使う */
+  activeTextEditor: undefined as { document: unknown; selections: unknown[] } | undefined,
   showErrorMessage: async (message: string) => {
     shownErrors.push(message);
     return message;
@@ -289,6 +368,10 @@ export const window = {
 };
 
 export const commands = {
+  executeCommand: async (command: string): Promise<undefined> => {
+    executedCommands.push(command);
+    return undefined;
+  },
   registerCommand: (command: string, handler: CommandHandler) => {
     registeredCommands.set(command, handler);
     return {
@@ -296,6 +379,37 @@ export const commands = {
         registeredCommands.delete(command);
       },
       command,
+    };
+  },
+};
+
+export const languages = {
+  registerHoverProvider: (selector: unknown, provider: unknown) => {
+    const registration = { selector, provider };
+    registeredHoverProviders.push(registration);
+    return {
+      dispose: () => {
+        const index = registeredHoverProviders.indexOf(registration);
+        if (index >= 0) {
+          registeredHoverProviders.splice(index, 1);
+        }
+      },
+    };
+  },
+  registerCompletionItemProvider: (
+    selector: unknown,
+    provider: unknown,
+    ...triggerCharacters: string[]
+  ) => {
+    const registration: RegisteredCompletionProvider = { selector, provider, triggerCharacters };
+    registeredCompletionProviders.push(registration);
+    return {
+      dispose: () => {
+        const index = registeredCompletionProviders.indexOf(registration);
+        if (index >= 0) {
+          registeredCompletionProviders.splice(index, 1);
+        }
+      },
     };
   },
 };

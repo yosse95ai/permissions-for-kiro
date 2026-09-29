@@ -113,7 +113,7 @@ export async function resolveUserScope(home: string = os.homedir()): Promise<Sco
  * ハッシュ規則やパス正規化が想定と変わった場合の最後の砦。通常はハッシュで解決できるため
  * 実行されない。
  *
- * **比較は `normalizeRoot()` を通す**（Q45）。Windows ではドライブレターの大文字小文字と
+ * **比較は `normalizeRoot()` を通す**。Windows ではドライブレターの大文字小文字と
  * 区切り文字が経路によって変わるため、素の文字列比較では外れる。
  */
 async function reverseScan(

@@ -1,5 +1,5 @@
 {
-  "extension.description": "Visualize the permission rules that apply to your current workspace and user profile, and jump straight to the line that defines them.",
+  "extension.description": "Visualize the permission rules that apply to your current workspace and user profile, and jump straight to the line that defines them. Get completion while editing the file.",
   "command.refresh.title": "Refresh",
   "command.openScopeFile.title": "Open Permissions File",
   "command.revealLocation.title": "Go to Definition",

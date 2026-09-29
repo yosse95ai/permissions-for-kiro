@@ -42,7 +42,7 @@ export type TreeNode =
       ruleIndex: number;
       patternIndex: number;
       pattern: MatchPattern;
-      /** どちらのリストのパターンか。`TreeItem.id` の衝突を避けるためにも必要（Q35） */
+      /** どちらのリストのパターンか。`TreeItem.id` の衝突を避けるためにも必要 */
       list: PatternListKind;
     }
   | {
@@ -52,7 +52,7 @@ export type TreeNode =
       slug: string;
       label: string;
       /**
-       * tooltip に出す全文。`label` を短縮している場合に設定する（Q37 = D）。
+       * tooltip に出す全文。`label` を短縮している場合に設定する。
        *
        * パースエラーの `label` は 1 行目だけに削っているため、スニペットとキャレットを
        * 含む原文はここで保持する。省略時は `label` をそのまま tooltip にする。
@@ -171,7 +171,7 @@ function scopeChildren(scope: ScopeData): TreeNode[] {
       scope,
       slug: `error:${index}`,
       label: formatParseError(error),
-      // ラベルは 1 行目だけに削っているので、原文は tooltip に回す（Q37 = D）。
+      // ラベルは 1 行目だけに削っているので、原文は tooltip に回す。
       detail: error.message,
       icon: ERROR_ICON,
       line: error.line,
@@ -179,7 +179,7 @@ function scopeChildren(scope: ScopeData): TreeNode[] {
   }
 
   // 設定が読み込まれていない原因を先頭に置く。**クリックで原因の行へジャンプできる**
-  // ようにするのが要点（Q33 の案 b）。
+  // ようにするのが要点。
   const problems: TreeNode[] = validation.fatal.map((problem, index) => ({
     kind: 'message',
     scope,
@@ -212,7 +212,7 @@ function scopeTreeItem(scope: ScopeData): vscode.TreeItem {
   item.resourceUri = vscode.Uri.file(scope.file.filePath);
 
   // Workspace は白、User は紫。`milestone` は AGENT STEERING & SKILLS と同じアイコン。
-  // 読み込まれていないスコープは赤にして、折りたたんでいても異常が分かるようにする（Q33）。
+  // 読み込まれていないスコープは赤にして、折りたたんでいても異常が分かるようにする。
   const color = scopeInactive(scope)
     ? 'errorForeground'
     : scope.kind === 'user'
@@ -239,7 +239,7 @@ function scopeTooltip(scope: ScopeData): vscode.MarkdownString {
       : `**${vscode.l10n.t('Workspace scope')}**`,
   );
 
-  // ワークスペースのパスを最初に出す（Q48）。ラベルは `folder.name` なので、マルチルートで
+  // ワークスペースのパスを最初に出す。ラベルは `folder.name` なので、マルチルートで
   // 同名のフォルダを開くと行が区別できなくなる。ハッシュは診断用で、人間には逆引きできない。
   if (scope.kind === 'workspace') {
     lines.push('', `${vscode.l10n.t('Folder:')} \`${scope.folder.uri.fsPath}\``);
@@ -256,7 +256,7 @@ function scopeTooltip(scope: ScopeData): vscode.MarkdownString {
     lines.push('', `${vscode.l10n.t('Hash:')} \`${scope.hash}\``);
     if (scope.resolvedVia !== 'hash') {
       // 通常は `hash` で解決する。それ以外はハッシュ規則が想定と違った可能性を示す。
-      // `resolvedVia` の値そのものは内部の識別子なので訳さない（Q31）。
+      // `resolvedVia` の値そのものは内部の識別子なので訳さない。
       lines.push(`${vscode.l10n.t('Resolved via:')} \`${scope.resolvedVia}\``);
     }
   }
@@ -266,7 +266,7 @@ function scopeTooltip(scope: ScopeData): vscode.MarkdownString {
   if (fatal.length > 0) {
     lines.push('', `**${vscode.l10n.t('Not loaded')}**`);
     lines.push(vscode.l10n.t('Kiro could not load this file, so none of these rules apply.'));
-    // 原因の本文は英語のまま。Kiro 本体の通知と突き合わせられるようにする（Q31）。
+    // 原因の本文は英語のまま。Kiro 本体の通知と突き合わせられるようにする。
     for (const problem of fatal) {
       lines.push(`- ${problem.message}`);
     }
@@ -300,9 +300,9 @@ function ruleTreeItem(scope: ScopeData, ruleIndex: number, rule: PermissionRule)
   item.accessibilityInformation = { label: ruleAccessibilityLabel(rule, state) };
 
   // 子を持つ行に `command` を付けると、展開のトグルと同時にエディタが開いてしまう
-  // （memory.md 4.2 のクリック挙動の項）。
+  // （vscode#34130）。
   //
-  // **子を持たないのは `all` のルール（`match` 省略かつ `exclude` 無し）だけ**（Q36）。
+  // **子を持たないのは `all` のルール（`match` 省略かつ `exclude` 無し）だけ**。
   // この行にだけジャンプを割り当てる。そうしないと、パターン行を持たないルールへ飛ぶ手段が
   // 一切なくなる。
   if (!hasChildren) {
@@ -376,13 +376,13 @@ function patternTreeItem(node: Extract<TreeNode, { kind: 'pattern' }>): vscode.T
   const { scope, ruleIndex, patternIndex, pattern, list } = node;
   const item = new vscode.TreeItem(pattern.pattern, vscode.TreeItemCollapsibleState.None);
 
-  // `match` と `exclude` で名前空間を分ける。同じ添字が両方に存在するため（Q35）。
+  // `match` と `exclude` で名前空間を分ける。同じ添字が両方に存在するため。
   item.id = `${scope.key}/${ruleIndex}/${list}/${patternIndex}`;
 
   if (list === 'exclude') {
     // 灰色の `exclude` アイコン。`match` の歯車と形も色も違うので区別できる。
     item.iconPath = themeIcon(EXCLUDE_APPEARANCE);
-    // `exclude` は YAML のキー名なので訳さない（Q31 の識別子の扱い）。
+    // `exclude` は YAML のキー名なので訳さない（識別子は訳さない）。
     item.description = 'exclude';
     item.accessibilityInformation = { label: `${pattern.pattern}, exclude` };
     item.tooltip = new vscode.MarkdownString(

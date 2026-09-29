@@ -178,7 +178,7 @@ describe('watchPermissions', () => {
   });
 });
 
-// `platform` を明示して呼ぶ。実行 OS に依存せず両方の挙動を検証するため（Q41 = B）。
+// `platform` を明示して呼ぶ。実行 OS に依存せず両方の挙動を検証するため。
 describe('isPermissionsFile（posix）', () => {
   const home = '/home/test';
   const isTarget = (filePath: string): boolean => isPermissionsFile(filePath, home, 'linux');
@@ -203,7 +203,7 @@ describe('isPermissionsFile（posix）', () => {
   it('置き場所が違うものは対象外', () => {
     expect(isTarget('/home/test/.kiro/permissions.yaml')).toBe(false);
     expect(isTarget('/Users/test/project/permissions.yaml')).toBe(false);
-    // ワークスペース内の .kiro は Kiro に読まれないため対象外（memory.md 4.1）。
+    // ワークスペース内の .kiro は Kiro に読まれないため対象外。
     expect(isTarget('/Users/test/project/.kiro/settings/permissions.yaml')).toBe(false);
   });
 
@@ -215,7 +215,7 @@ describe('isPermissionsFile（posix）', () => {
 
   it('大文字小文字の違いは posix では別のパスとして扱う', () => {
     // macOS のファイルシステムは大文字小文字を区別しないが、Kiro 本体の正規化は
-    // win32 以外では `toLowerCase()` しない（memory.md 3.2）。本体に合わせる。
+    // win32 以外では `toLowerCase()` しない。本体に合わせる。
     expect(isTarget('/Home/Test/.kiro/settings/permissions.yaml')).toBe(false);
   });
 });
@@ -231,7 +231,7 @@ describe('isPermissionsFile（win32）', () => {
   });
 
   it('ドライブレターが小文字でも認識する', () => {
-    // `Uri.fsPath` はドライブレターを小文字に落とす（memory.md 4.2 の `Uri.fsPath` の項）。
+    // `Uri.fsPath` はドライブレターを小文字に落とす。
     // 素の文字列比較だとここが `false` になり、保存時の即時反映が効かなくなる。
     expect(isTarget('d:\\Users\\test\\.kiro\\settings\\permissions.yaml')).toBe(true);
     expect(

@@ -172,9 +172,9 @@ describe('resolveWorkspaceScope', () => {
     expect(result.hash).toBe('aaaaaaaaaaaaaaaa');
   });
 
-  it('reverse-scan は win32 でドライブレターと区切り文字の違いを無視して照合する（Q45）', async () => {
-    // `os.homedir()` 由来のパスは `D:`、`Uri.fsPath` 由来は `d:` になる
-    // （memory.md 4.2 の `Uri.fsPath` の項）。素の文字列比較だと照合できない。
+  it('reverse-scan は win32 でドライブレターと区切り文字の違いを無視して照合する', async () => {
+    // `os.homedir()` 由来のパスは `D:`、`Uri.fsPath` 由来は `d:` になる。
+    // 素の文字列比較だと照合できない。
     const dir = path.join(workspaceRootsDir(home), '3333333333333333');
     await write(
       path.join(dir, '.trust-migration.json'),
@@ -187,8 +187,8 @@ describe('resolveWorkspaceScope', () => {
     expect(result.hash).toBe('3333333333333333');
   });
 
-  it('reverse-scan は posix では大文字小文字の違いを無視しない（Q45）', async () => {
-    // 本体の正規化が `toLowerCase()` するのは win32 のときだけ（memory.md 3.2）。
+  it('reverse-scan は posix では大文字小文字の違いを無視しない', async () => {
+    // 本体の正規化が `toLowerCase()` するのは win32 のときだけ。
     const dir = path.join(workspaceRootsDir(home), '4444444444444444');
     await write(
       path.join(dir, '.trust-migration.json'),
@@ -200,7 +200,7 @@ describe('resolveWorkspaceScope', () => {
     expect(result.resolvedVia).toBe('hash');
   });
 
-  it('NFC / NFD 両方のディレクトリがある場合は入力の正規形に対応する方を採る（Q27 = A）', async () => {
+  it('NFC / NFD 両方のディレクトリがある場合は入力の正規形に対応する方を採る', async () => {
     // 実機で見つかった状態の再現。同一パスに 2 つのハッシュディレクトリが併存し、
     // NFC 側にだけ permissions.yaml がある。
     const nfc = '/Users/test/ライブラリ'.normalize('NFC');

@@ -60,16 +60,19 @@ These are the constraints that are easy to break without noticing.
 ### Keep the layers separate
 
 ```
-workspaceHash.ts   path normalization and hashing        no vscode dependency
-permissionsFile.ts scope path resolution, reverse scan   no vscode dependency
-parse.ts           YAML / JSON parsing                   no vscode dependency
-validate.ts        Kiro's validation rules               no vscode dependency
-display.ts         pure display logic                    depends on vscode.l10n only
-model.ts           loading and validating a scope
-tree.ts            TreeDataProvider and TreeItem
-commands.ts        refresh / open / reveal
-watch.ts           file watching and debouncing
-extension.ts       activate / deactivate
+workspaceHash.ts         path normalization and hashing          no vscode dependency
+permissionsFile.ts       scope path resolution, reverse scan     no vscode dependency
+parse.ts                 YAML / JSON parsing                     no vscode dependency
+validate.ts              Kiro's validation rules                 no vscode dependency
+completionContext.ts     where the cursor is, for completion     no vscode dependency
+display.ts               pure display logic                      depends on vscode.l10n only
+completionCandidates.ts  completion candidates, hover text       depends on vscode.l10n only
+model.ts                 loading and validating a scope
+tree.ts                  TreeDataProvider and TreeItem
+commands.ts              refresh / open / reveal
+watch.ts                 file watching and debouncing
+completion.ts            completion and hover registration
+extension.ts             activate / deactivate
 ```
 
 **`parse.ts` records facts about the shape of the file and never judges them.** That `match` held a single string rather than an array is a fact; whether that is acceptable is Kiro's rule, and every such rule lives in `validate.ts`. Keeping the split means that when Kiro changes, there is exactly one file to fix.

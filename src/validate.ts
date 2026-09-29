@@ -1,7 +1,7 @@
 import type { ParseResult, PermissionRule } from './parse';
 
 /**
- * Kiro 本体の検証仕様を再現する層（Q33 = C）。
+ * Kiro 本体の検証仕様を再現する層。
  *
  * **なぜ必要か。** 本体は不正なルールを黙って捨てる（non-fatal）か、設定全体を捨てて
  * fail closed にする（fatal）。拡張が書かれた内容をそのまま見せると、**実際には効いて
@@ -9,10 +9,10 @@ import type { ParseResult, PermissionRule } from './parse';
  * ルールを表示する」なので、本体と同じ判定を行う。
  *
  * **リスク。** 本体の実装（`wb()` / `fr11()`）を読み取って写したものなので、Kiro の更新で
- * 条件が変わると乖離する。判定の根拠は memory.md 3.4 に表として残してある。
+ * 条件が変わると乖離する。
  */
 
-/** Kiro が受け付ける capability。本体の Set から転記した（memory.md 3.3）。 */
+/** Kiro が受け付ける capability。本体の Set から転記した。 */
 export const KNOWN_CAPABILITIES: readonly string[] = [
   // メタ capability
   'all',
@@ -36,13 +36,13 @@ export const KNOWN_CAPABILITIES: readonly string[] = [
 /** effect として書ける値。 */
 export const VALID_EFFECTS: readonly string[] = ['deny', 'allow', 'ask'];
 
-/** この拡張が扱うスコープ。MVP は user と workspace のみ（memory.md 2.1）。 */
+/** この拡張が扱うスコープ。user と workspace だけ（agent / kiro スコープは扱わない）。 */
 export type PolicyScope = 'user' | 'workspace';
 
 /**
- * スコープごとに許される effect（memory.md 3.3 の `kc5`）。
+ * スコープごとに許される effect（本体の `kc5`）。
  *
- * user と workspace はどちらも 3 値すべてを許すため、**MVP ではこの制約に引っかからない。**
+ * user と workspace はどちらも 3 値すべてを許すため、**今扱っているスコープではこの制約に引っかからない。**
  * agent / kiro スコープを扱うようになったときに効いてくるので、判定は残しておく。
  */
 export const SCOPE_EFFECTS: Record<PolicyScope, readonly string[]> = {
@@ -52,7 +52,7 @@ export const SCOPE_EFFECTS: Record<PolicyScope, readonly string[]> = {
 
 export interface ValidationProblem {
   /**
-   * 原因の説明。**英語固定**（Q31 = B）。Kiro 本体が通知に出す文言に寄せているので、
+   * 原因の説明。**英語固定**。Kiro 本体が通知に出す文言に寄せているので、
    * 検索したときに本体のメッセージと突き合わせられる。
    */
   message: string;

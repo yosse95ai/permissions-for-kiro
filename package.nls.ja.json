@@ -1,5 +1,5 @@
 {
-  "extension.description": "現在のワークスペースとユーザープロファイルに適用されている Permissions のルールを可視化し、定義している行へ直接ジャンプできます。",
+  "extension.description": "現在のワークスペースとユーザープロファイルに適用されている Permissions のルールを可視化し、定義している行へ直接ジャンプできます。ファイルの編集中には補完も使えます。",
   "command.refresh.title": "再読み込み",
   "command.openScopeFile.title": "Permissions ファイルを開く",
   "command.revealLocation.title": "定義へ移動",

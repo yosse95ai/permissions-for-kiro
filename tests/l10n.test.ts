@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
  * 翻訳リソースの整合性を検証する。
  *
  * バンドルは手書きで管理しているため（`@vscode/l10n-dev` の抽出結果と一致することは
- * フェーズ 7 で実測済み）、**文言を追加したときの翻訳漏れと、使われなくなった余剰キーを
+ * 実測済み）、**文言を追加したときの翻訳漏れと、使われなくなった余剰キーを
  * ここで検出する。**
  */
 
@@ -79,7 +79,7 @@ describe('l10n bundle (source strings)', () => {
   const japanese = readJson('l10n/bundle.l10n.ja.json');
 
   it('finds the localized strings in the source', () => {
-    // 正規表現による収集が壊れていないことの番人。Q33 の実装後で 23 件。
+    // 正規表現による収集が壊れていないことの番人。この下限を書いた時点で 23 件。
     expect(sourceMessages.size).toBeGreaterThanOrEqual(23);
   });
 

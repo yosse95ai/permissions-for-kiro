@@ -2,7 +2,7 @@
   "name": "permissions-for-kiro",
   "displayName": "Permissions for Kiro",
   "description": "%extension.description%",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "publisher": "yosse95ai",
   "license": "MIT",
   "repository": {
@@ -25,11 +25,16 @@
     "policy",
     "agent",
     "security",
-    "tree view"
+    "tree view",
+    "completion",
+    "intellisense"
   ],
   "main": "./dist/extension.js",
   "l10n": "./l10n",
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage:yaml",
+    "onLanguage:json"
+  ],
   "contributes": {
     "views": {
       "kiro": [
@@ -109,6 +114,7 @@
     "@vscode/vsce-sign"
   ],
   "dependencies": {
+    "jsonc-parser": "3.3.1",
     "yaml": "2.9.1"
   },
   "devDependencies": {

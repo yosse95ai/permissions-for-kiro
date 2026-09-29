@@ -22,15 +22,15 @@ interface ScopeBase {
   /**
    * `TreeItem.id` の接頭辞。
    *
-   * **展開状態の保持のために安定していることが必須**（memory.md 4.2 の TreeItem.id の項）。ハッシュではなく
-   * ワークスペースルートのパスを使う。ハッシュは `resolvedVia` の経路によって変わりうる。
+   * **展開状態の保持のために安定していることが必須**（`TreeItem.id` がないか変わると、再読み込みの
+   * たびに展開状態が戻る）。ハッシュではなくワークスペースルートのパスを使う。ハッシュは `resolvedVia` の経路によって変わりうる。
    */
   key: string;
   label: string;
   file: ScopeFile;
   content: ScopeContent;
   /**
-   * Kiro の規則に照らした検証結果（Q33 = C）。
+   * Kiro の規則に照らした検証結果。
    *
    * `content` が `parsed` 以外のときは空。`fatal` が空でなければ、**このスコープのルールは
    * 1 つも効いていない。**
@@ -76,7 +76,7 @@ async function readContent(file: ScopeFile): Promise<ScopeContent> {
  * 現在効いているスコープを読み込む。
  *
  * ワークスペースルートごとに 1 スコープを `workspaceFolders` の順に並べ、User スコープを
- * 最後に置く（Q12）。フォルダ未オープンのときは User だけになる（Q18）。
+ * 最後に置く。フォルダ未オープンのときは User だけになる。
  */
 export async function loadScopes(home: string = os.homedir()): Promise<ScopeData[]> {
   const folders = vscode.workspace.workspaceFolders ?? [];

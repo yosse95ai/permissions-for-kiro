@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/yosse95ai/permissions-for-kiro/actions/workflows/ci.yml/badge.svg)](https://github.com/yosse95ai/permissions-for-kiro/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Built with Kiro][kiro-badge]][kiro]
+[![Open VSX downloads][downloads-badge]][open-vsx]
 
 [English](./README.md) | **日本語**
 
@@ -39,6 +41,8 @@ Kiro は権限設定をワークスペース内に置きません。ホームデ
 - **設定全体の読み込みに失敗している場合は警告を出す**（fail closed。この状態ではどのルールも適用されません）
 - YAML / JSON のパースエラーを、原因の行とともに表示
 - `permissions.yaml` に加えて `permissions.json` に対応。マルチルートワークスペースにも対応
+- **ファイルの編集中に補完を表示**。ルールのキー、capability 名、effect の値を、短い説明付きで提案します。`match` と `exclude` には、ファイル・shell・MCP のルール向けのパターンの例が付きます
+- ルールのキー、capability、effect にマウスを乗せると、同じ説明を表示
 
 ## インストール
 
@@ -57,19 +61,23 @@ Kiro の拡張ギャラリーは [Open VSX](https://open-vsx.org) を指して�
 
 このビューは読み取り専用です。ルールの追加・変更・削除はファイルを編集して行ってください。ファイルはペンシルアイコン、または任意の行のクリックから開けます。ルールの書き方は Kiro のドキュメントの [Permissions](https://kiro.dev/docs/permissions/) を参照してください。
 
+ファイルを編集している間は、ルールのキー、capability 名、effect の値がエディタの候補に出ます。パターンは候補に出さず、`match` と `exclude` の説明に、そのルールの capability に合った例を載せています。Tab や Enter で次のキーを書く列まで進めたときにも、候補の一覧が開きます。`rules` を選ぶと最初のルールの `- capability: ` まで、`match` や `exclude` を選ぶと次の行の `- ` まで入ります。書いたキー、capability、effect にマウスを乗せると、説明と Kiro のドキュメントへのリンクが出ます。拡張は候補を出すだけで、候補を選ぶまでファイルは変わりません。
+
+このファイルでも Kiro の Autocomplete がインラインの候補を出すことがあり、その内容は正しいルールとは限りません。止めるには、コマンドパレットで `Kiro: Toggle Autocomplete Enabled` を実行してください。このファイルだけでなく、すべてのファイルで Autocomplete が止まります。
+
 ## 動作環境
 
 | 項目     | 対応                                                                               |
 | -------- | ---------------------------------------------------------------------------------- |
 | エディタ | **Kiro 専用。** Kiro の権限モデルに依存しているため、素の VS Code では動作しません |
-| Kiro     | 1.0.288 以降で動作を確認                                                           |
+| Kiro     | 1.0.288 以降で動作を確認。補完とホバーは 1.1.14 で確認                             |
 | OS       | macOS / Windows（いずれも実機で検証済み）                                          |
 
 ## しくみ
 
-この拡張は Kiro 本体から 2 つの挙動を再現しています。ワークスペースのパスを正規化してハッシュ化し設定ディレクトリを特定する処理と、ルールの検証処理です。これによって、ファイルそのままではなく実際に効いているルールを表示できています。
+この拡張は Kiro 本体から 2 つの挙動を再現しています。ワークスペースのパスを正規化してハッシュ化し設定ディレクトリを特定する処理と、ルールの検証処理です。これによって、ファイルそのままではなく実際に効いているルールを表示できています。補完に出す capability 名・ルールのキー・effect も、同じ検証処理の写しから取っています。
 
-どちらも Kiro の内部実装に合わせているため、**将来 Kiro 側が変わると表示が実態と食い違う可能性があります。** 食い違いに気づいたら [Issue](https://github.com/yosse95ai/permissions-for-kiro/issues) を立ててください。
+どちらも Kiro の内部実装に合わせているため、**将来 Kiro 側が変わると、表示や補完の候補が実態と食い違う可能性があります。** 食い違いに気づいたら [Issue](https://github.com/yosse95ai/permissions-for-kiro/issues) を立ててください。
 
 ## 開発
 
@@ -90,3 +98,8 @@ Issue も Pull Request も歓迎します。開発環境の準備と、コード
 ## 商標について
 
 Kiro および AWS は Amazon.com, Inc. またはその関連会社の商標です。この拡張機能は Amazon Web Services, Inc. と提携しておらず、同社による推奨も受けていません。
+
+[kiro]: https://kiro.dev/
+[kiro-badge]: https://img.shields.io/badge/Built_with-Kiro-8A3FFC?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyNCI+PHBhdGggZD0iTTMuOCAxOC41N0MxLjMyIDI0LjA2IDYuNiAyNS40MyAxMC40OSAyMi4yMkMxMS42MyAyNS44MiAxNS45MyAyMy4xNCAxNy40NyAyMC4zNEMyMC44NiAxNC4xOSAxOS40OSA3LjkxIDE5LjE0IDYuNjJDMTYuNzIgLTIuMjEgNC42NyAtMi4yMiAyLjYgNi42NkMyLjExIDguMjIgMi4xIDkuOTkgMS44MyAxMS44MkMxLjY5IDEyLjc1IDEuNTkgMTMuMzQgMS4yMyAxNC4zMUMxLjAzIDE0Ljg3IDAuNzUgMTUuMzcgMC4zIDE2LjIxQy0wLjM5IDE3LjUxIC0wLjEgMjAuMDIgMy40NiAxOC43MlYxOC43MkwzLjggMTguNTdaIiBmaWxsPSJ3aGl0ZSIvPjxwYXRoIGQ9Ik0xMC45NiAxMC40NEM5Ljk3IDEwLjQ0IDkuODIgOS4yNiA5LjgyIDguNTVDOS44MiA3LjkyIDkuOTQgNy40MSAxMC4xNSA3LjA5QzEwLjM0IDYuODEgMTAuNjIgNi42NyAxMC45NiA2LjY3QzExLjMxIDYuNjcgMTEuNiA2LjgxIDExLjgxIDcuMUMxMi4wNSA3LjQzIDEyLjE4IDcuOTMgMTIuMTggOC41NUMxMi4xOCA5Ljc0IDExLjcyIDEwLjQ0IDEwLjk2IDEwLjQ0SDEwLjk2WiIgZmlsbD0iYmxhY2siLz48cGF0aCBkPSJNMTUuMDMgMTAuNDRDMTQuMDQgMTAuNDQgMTMuODkgOS4yNiAxMy44OSA4LjU1QzEzLjg5IDcuOTIgMTQuMDEgNy40MSAxNC4yMiA3LjA5QzE0LjQxIDYuODEgMTQuNjkgNi42NyAxNS4wMyA2LjY3QzE1LjM4IDYuNjcgMTUuNjcgNi44MSAxNS44OCA3LjFDMTYuMTIgNy40MyAxNi4yNSA3LjkzIDE2LjI1IDguNTVDMTYuMjUgOS43NCAxNS43OSAxMC40NCAxNS4wMyAxMC40NEgxNS4wM1oiIGZpbGw9ImJsYWNrIi8+PC9zdmc+Cg==
+[open-vsx]: https://open-vsx.org/extension/yosse95ai/permissions-for-kiro
+[downloads-badge]: https://img.shields.io/open-vsx/dt/yosse95ai/permissions-for-kiro?label=Open%20VSX%20downloads

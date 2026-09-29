@@ -58,7 +58,7 @@ describe('parsePermissions', () => {
   });
 
   it('match が単一文字列の場合も内容は読むが shape は scalar になる', () => {
-    // **Kiro ではこの書き方は fatal**（memory.md 3.4）。判定は validate.ts が行うので、
+    // **Kiro ではこの書き方は fatal**。判定は validate.ts が行うので、
     // ここでは形の事実だけを記録し、内容は表示のために保持する。
     const text = ['rules:', '  - capability: shell', '    effect: deny', '    match: sudo*'].join(
       '\n',
