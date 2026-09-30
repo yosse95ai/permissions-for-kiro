@@ -61,6 +61,8 @@ Kiro の拡張ギャラリーは [Open VSX](https://open-vsx.org) を指して�
 
 このビューは読み取り専用です。ルールの追加・変更・削除はファイルを編集して行ってください。ファイルはペンシルアイコン、または任意の行のクリックから開けます。ルールの書き方は Kiro のドキュメントの [Permissions](https://kiro.dev/docs/permissions/) を参照してください。
 
+![キー・capability・effect の補完を使って shell のルールを書き、ビューに反映されるのを確認する](docs/images/completion.gif)
+
 ファイルを編集している間は、ルールのキー、capability 名、effect の値がエディタの候補に出ます。パターンは候補に出さず、`match` と `exclude` の説明に、そのルールの capability に合った例を載せています。Tab や Enter で次のキーを書く列まで進めたときにも、候補の一覧が開きます。`rules` を選ぶと最初のルールの `- capability: ` まで、`match` や `exclude` を選ぶと次の行の `- ` まで入ります。書いたキー、capability、effect にマウスを乗せると、説明と Kiro のドキュメントへのリンクが出ます。拡張は候補を出すだけで、候補を選ぶまでファイルは変わりません。
 
 このファイルでも Kiro の Autocomplete がインラインの候補を出すことがあり、その内容は正しいルールとは限りません。止めるには、コマンドパレットで `Kiro: Toggle Autocomplete Enabled` を実行してください。このファイルだけでなく、すべてのファイルで Autocomplete が止まります。
@@ -78,6 +80,10 @@ Kiro の拡張ギャラリーは [Open VSX](https://open-vsx.org) を指して�
 この拡張は Kiro 本体から 2 つの挙動を再現しています。ワークスペースのパスを正規化してハッシュ化し設定ディレクトリを特定する処理と、ルールの検証処理です。これによって、ファイルそのままではなく実際に効いているルールを表示できています。補完に出す capability 名・ルールのキー・effect も、同じ検証処理の写しから取っています。
 
 どちらも Kiro の内部実装に合わせているため、**将来 Kiro 側が変わると、表示や補完の候補が実態と食い違う可能性があります。** 食い違いに気づいたら [Issue](https://github.com/yosse95ai/permissions-for-kiro/issues) を立ててください。
+
+## 関連記事
+
+- [Kiro の Permissions を見える化する拡張機能を作ってみた！ついでに Permissions の仕組みも読み解こう](https://zenn.dev/aws_japan/articles/permissions-for-kiro)（Zenn）: この拡張を作った経緯、Kiro の Permissions の仕組み、設定ファイルの置き場所とハッシュの計算方法を解説しています
 
 ## 開発
 

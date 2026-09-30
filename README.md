@@ -61,6 +61,8 @@ Open the Kiro view container in the activity bar. The `PERMISSIONS` view appears
 
 The view is read only. Add, change, and remove rules by editing the file, which you can open from the pencil icon or by clicking any row. For the rule syntax, see [Permissions](https://kiro.dev/docs/permissions/) in the Kiro documentation.
 
+![Writing a shell rule with completion for fields, capabilities, and effects, then seeing it in the view](docs/images/completion.gif)
+
 While you edit the file, the editor suggests rule fields, capability names, and effect values. Patterns are not suggested; the description of `match` and `exclude` shows examples for the rule's capability instead. The list also opens after you press Tab or Enter to reach the column where the next field goes. Picking `rules` inserts the first rule up to `- capability: `, and picking `match` or `exclude` inserts the first `- ` on the next line. Hover a field, capability, or effect you have already written to see its description and a link to the Kiro documentation. The extension only suggests. Nothing changes in the file until you accept a suggestion.
 
 Kiro's Autocomplete can show inline suggestions in these files too, and they are not always valid rules. To turn them off, run `Kiro: Toggle Autocomplete Enabled` from the Command Palette. This turns off Autocomplete in every file, not only here.
@@ -78,6 +80,10 @@ Kiro's Autocomplete can show inline suggestions in these files too, and they are
 The extension reproduces two things from Kiro itself: the way a workspace path is normalized and hashed to locate the settings directory, and the way rules are validated. That is what lets it show the rules actually in effect instead of the raw file. Completion draws its capability names, rule fields, and effects from the same copy of Kiro's validation rules.
 
 Because both behaviours mirror Kiro's internals, a future change in Kiro could make the view, and the completion suggestions, diverge from reality. If you notice a mismatch, please [open an issue](https://github.com/yosse95ai/permissions-for-kiro/issues).
+
+## Further reading
+
+- [Kiro の Permissions を見える化する拡張機能を作ってみた！ついでに Permissions の仕組みも読み解こう](https://zenn.dev/aws_japan/articles/permissions-for-kiro) (Zenn, in Japanese): why this extension was built, how Kiro's permission model works, and where the settings files live, including how the directory hash is computed
 
 ## Development
 
