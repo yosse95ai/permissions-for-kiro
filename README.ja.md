@@ -1,13 +1,16 @@
+<div align="center">
+
+<img src="docs/images/logo.png" alt="" width="96">
+
 # Permissions for Kiro
 
-[![CI](https://github.com/yosse95ai/permissions-for-kiro/actions/workflows/ci.yml/badge.svg)](https://github.com/yosse95ai/permissions-for-kiro/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![Built with Kiro][kiro-badge]][kiro]
-[![Open VSX downloads][downloads-badge]][open-vsx]
+**Kiro が実際に適用している権限ルールを確認できます。**<br>サイドバーに `PERMISSIONS` ビューを追加し、現在のワークスペースとユーザープロファイルに効いている Permissions を一目で確認できます。ルールをクリックすると、それを定義しているファイルの該当行にジャンプします。`permissions.yaml` と `permissions.json` の入力補完にも対応しています。
+
+[![CI](https://github.com/yosse95ai/permissions-for-kiro/actions/workflows/ci.yml/badge.svg)](https://github.com/yosse95ai/permissions-for-kiro/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE) [![Built with Kiro][kiro-badge]][kiro] [![Open VSX downloads][downloads-badge]][open-vsx]
 
 [English](./README.md) | **日本語**
 
-サイドバーに `PERMISSIONS` ビューを追加し、現在のワークスペースとユーザープロファイルに効いている権限ルールを表示します。ルールをクリックすると、それを定義しているファイルの該当行にジャンプします。
+</div>
 
 ![ツリーを展開し、パターンを定義している行へジャンプする](docs/images/demo.gif)
 

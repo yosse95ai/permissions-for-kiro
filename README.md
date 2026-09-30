@@ -1,13 +1,16 @@
+<div align="center">
+
+<img src="docs/images/logo.png" alt="" width="96">
+
 # Permissions for Kiro
 
-[![CI](https://github.com/yosse95ai/permissions-for-kiro/actions/workflows/ci.yml/badge.svg)](https://github.com/yosse95ai/permissions-for-kiro/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![Built with Kiro][kiro-badge]][kiro]
-[![Open VSX downloads][downloads-badge]][open-vsx]
+**See the permission rules Kiro actually applies.**<br>Adds a `PERMISSIONS` view to the sidebar so you can see at a glance which permissions are in effect for your workspace and user profile. Click a rule to jump straight to the line that defines it. Completion is available in `permissions.yaml` and `permissions.json` too.
+
+[![CI](https://github.com/yosse95ai/permissions-for-kiro/actions/workflows/ci.yml/badge.svg)](https://github.com/yosse95ai/permissions-for-kiro/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE) [![Built with Kiro][kiro-badge]][kiro] [![Open VSX downloads][downloads-badge]][open-vsx]
 
 **English** | [日本語](./README.ja.md)
 
-Adds a `PERMISSIONS` view to the sidebar that shows the permission rules currently in effect for your workspace and user profile. Click a rule to jump straight to the line that defines it.
+</div>
 
 ![Expanding the tree and jumping to the line that defines a pattern](docs/images/demo.gif)
 
