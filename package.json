@@ -2,7 +2,7 @@
   "name": "permissions-for-kiro",
   "displayName": "Permissions for Kiro",
   "description": "%extension.description%",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "yosse95ai",
   "license": "MIT",
   "repository": {
