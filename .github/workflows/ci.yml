@@ -61,7 +61,7 @@ jobs:
       # bundle in the VSIX is minified.
       - run: bun run package
 
-      - uses: actions/upload-artifact@v7.0.1
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: vsix
           path: "*.vsix"
